@@ -1,249 +1,360 @@
 <title>Avogadro Station</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Big+Shoulders+Display:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;600;700&display=swap">
 <style>
-/* Layout: one-column station console. Sticky HUD on top, periodic-table tiles for the station map, one task per screen. */
+/* Layout: pixel-art space station. Fixed starfield behind a one-column game console; HUD pinned on top. */
 :root{
-  /* Palette named after flame-test colors */
-  --hull:#0d1520;      /* background: station steel at night */
-  --panel:#141f2d;
-  --panel2:#1b2a3c;
-  --line:#2a3b52;
-  --ink:#e7edf5;
-  --dim:#94a4bb;
-  --na:#f4b43c;        /* sodium flame: primary accent */
-  --on-na:#1d1404;
-  --cu:#3fc8c0;        /* copper flame: info, electrons */
-  --sr:#ff6464;        /* strontium flame: damage, errors */
-  --ba:#93dc6c;        /* barium flame: success */
-  --f-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
-  --f-body:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
-  --r:10px;
+  --void:#0b0d1a;     /* deep space */
+  --hull:#181c30;
+  --panel:#262b44;
+  --panel2:#303757;
+  --line:#3a4466;
+  --steel:#5a6988;
+  --ink:#eef0f8;
+  --dim:#9aa3c2;
+  --na:#feae34;       /* sodium flame: primary accent */
+  --on-na:#2a1a00;
+  --cu:#2ce8f5;       /* copper flame: electrons, info */
+  --sr:#e43b44;       /* strontium flame: damage */
+  --ba:#63c74d;       /* barium flame: success */
+  --pink:#b55088;
+  --orange:#f77622;
+  --blue:#0099db;
+  --f-pix:'Press Start 2P','Courier New',monospace;
+  --f-body:'Pixelify Sans','Trebuchet MS',system-ui,sans-serif;
+  --notch:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px);
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{min-height:100%}
-body{margin:0;background:var(--hull);color:var(--ink);font:16px/1.55 var(--f-body);-webkit-text-size-adjust:100%;
-  background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:22px 22px;background-attachment:fixed}
+body{margin:0;background:var(--void);color:var(--ink);font:18px/1.45 var(--f-body);-webkit-text-size-adjust:100%;overflow-x:hidden}
+canvas.pix,.pix{image-rendering:pixelated;image-rendering:crisp-edges}
 sub,sup{font-size:.68em;line-height:0}
-button{font:inherit;color:inherit;cursor:pointer}
-button:focus-visible,input:focus-visible{outline:2px solid var(--cu);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#stars{position:fixed;inset:0;width:100%;height:100%;z-index:0;image-rendering:pixelated}
+#fx{position:fixed;inset:0;width:100%;height:100%;z-index:60;pointer-events:none}
+#flash{position:fixed;inset:0;z-index:55;pointer-events:none;opacity:0}
+#flash.red{background:var(--sr)}#flash.green{background:var(--ba)}
+#flash.on{animation:flash .35s steps(3) forwards}
+@keyframes flash{0%{opacity:.35}100%{opacity:0}}
+#app{position:relative;z-index:1}
+#app.shake{animation:shake .4s steps(2)}
+@keyframes shake{0%{transform:translate(4px,0)}25%{transform:translate(-4px,4px)}50%{transform:translate(4px,-4px)}75%{transform:translate(-4px,0)}100%{transform:none}}
+
+/* Pixel primitives */
+.win{background:var(--panel);clip-path:var(--notch);box-shadow:inset 0 0 0 4px var(--line);padding:16px}
+.pb{font:11px/1.3 var(--f-pix);text-transform:uppercase;letter-spacing:.02em;color:var(--ink);background:var(--panel2);border:0;padding:14px 16px;min-height:48px;
+  clip-path:var(--notch);box-shadow:inset -4px -4px 0 rgba(0,0,0,.35),inset 4px 4px 0 rgba(255,255,255,.14);display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+.pb:active:not(:disabled){transform:translateY(2px);box-shadow:inset 4px 4px 0 rgba(0,0,0,.35)}
+.pb:focus-visible,.sw:focus-visible,.room:focus-visible,.key:focus-visible{outline:none;box-shadow:inset 0 0 0 4px var(--cu)}
+.pb.go{background:var(--na);color:var(--on-na)}
+.pb.cy{background:var(--cu);color:#04282b}
+.pb.ok{background:var(--ba);color:#0b1a07}
+.pb.bad{background:var(--sr)}
+.pb.big{font-size:13px;min-height:58px;width:100%}
+.pb.sm{font-size:9px;min-height:38px;padding:10px 12px}
+.pb:disabled{filter:grayscale(.85) brightness(.6);cursor:not-allowed}
+.lab{font:8px/1 var(--f-pix);letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
+.h1{font:clamp(18px,6vw,26px)/1.2 var(--f-pix);margin:0;color:var(--na);text-shadow:0 3px 0 #7a2a10;text-wrap:balance}
+.blink{animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
 .dim{color:var(--dim)}
-.mono{font-family:var(--f-mono)}
-.disp{font-family:var(--f-display);font-weight:800;letter-spacing:.01em;line-height:1;text-wrap:balance;margin:0}
-
-/* HUD */
-.hud{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--hull);border-bottom:1px solid var(--line)}
-.hudin{max-width:640px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
-.brand{background:none;border:0;padding:0;font-family:var(--f-display);font-weight:800;font-size:1.15rem;letter-spacing:.06em;text-transform:uppercase;color:var(--na);white-space:nowrap}
-.bs{display:none}
-@media (max-width:479px){.bl{display:none}.bs{display:inline}.hudin{gap:10px}}
-.meter{display:flex;align-items:center;gap:6px;min-width:0}
-.meter.hullm{flex:1}
-.ml{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
-.bar{flex:1;height:8px;border-radius:4px;background:var(--panel2);overflow:hidden;min-width:40px}
-.bar i{display:block;height:100%;background:var(--ba);transition:width .4s,background .4s}
-.bar i.low{background:var(--sr)}
-.mv{font-family:var(--f-mono);font-size:.85rem;font-variant-numeric:tabular-nums}
-.en .mv{color:var(--na)}
-.databtn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.8rem;font-weight:700}
-
-.wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:20px 64px}
-
-/* Buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;border-radius:var(--r);
-  background:var(--panel2);border:1px solid var(--line);font-weight:700;text-align:center}
-.btn:hover{border-color:var(--dim)}
-.btn.primary{background:var(--na);border-color:var(--na);color:var(--on-na)}
-.btn.primary:disabled{opacity:.45;cursor:not-allowed}
-.btn.small{min-height:38px;padding:8px 12px;font-size:.88rem}
-.btn.ghost{background:transparent}
 .stack{display:flex;flex-direction:column;gap:10px}
 .row{display:flex;flex-wrap:wrap;gap:10px}
 
+/* HUD */
+.hud{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--hull);box-shadow:0 4px 0 var(--line)}
+.hudin{max-width:640px;margin:0 auto;padding:8px 12px;display:flex;align-items:center;gap:10px}
+.rank{display:flex;align-items:center;gap:6px;background:none;border:0;padding:4px;font:8px var(--f-pix);color:var(--na);text-transform:uppercase}
+.rank canvas{width:27px;height:27px}
+#rankname{display:none}
+@media (min-width:520px){#rankname{display:inline}}
+.hullw{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.segs{display:flex;gap:2px}
+.seg{width:7px;height:14px;background:var(--line)}
+.seg.on{background:var(--ba)}.segs.low .seg.on{background:var(--sr);animation:blink .6s steps(2) infinite}
+.enw{display:flex;align-items:center;gap:6px}
+#enev{font:11px var(--f-pix);color:var(--na)}
+.combo{font:9px var(--f-pix);color:var(--void);background:var(--na);padding:4px 5px}
+.icon{width:36px;height:36px;border:0;background:var(--panel2);clip-path:var(--notch);font:9px var(--f-pix);display:flex;align-items:center;justify-content:center;padding:0}
+.icon.off{color:var(--dim);text-decoration:line-through}
+
+.wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:18px 72px}
+.scr{display:flex;flex-direction:column;gap:14px}
+
 /* Title */
-.title{display:flex;flex-direction:column;gap:18px;padding-top:12px}
-.logo{width:132px;border:2px solid var(--na);border-radius:6px;padding:8px 10px 10px;display:flex;flex-direction:column;color:var(--na);background:var(--panel)}
-.lz{font-family:var(--f-mono);font-size:.72rem}
-.ls{font-family:var(--f-display);font-weight:800;font-size:3.6rem;line-height:1;margin-top:4px}
-.ln{font-size:.78rem;color:var(--ink)}
-.title h1{font-size:clamp(2.8rem,13vw,4.4rem);text-transform:uppercase}
-.lede{margin:0;max-width:34em;font-size:1.05rem}
-.kit{margin:0;padding:0;list-style:none;display:grid;gap:6px}
-.kit li{padding-left:18px;position:relative}
-.kit li::before{content:"";position:absolute;left:0;top:.62em;width:8px;height:8px;border-radius:50%;background:var(--cu)}
+.title{display:flex;flex-direction:column;align-items:center;text-align:center;gap:18px;padding-top:10px}
+.shipart{width:144px;height:192px}
+.logo{margin:0;display:flex;flex-direction:column;gap:10px;font-family:var(--f-pix);font-weight:400}
+.logo .l1{font-size:clamp(22px,8.4vw,40px);color:var(--na);text-shadow:0 4px 0 var(--orange),0 8px 0 #7a2a10}
+.logo .l2{font-size:clamp(18px,6.6vw,32px);color:var(--cu);text-shadow:0 4px 0 var(--blue),0 8px 0 #0a3a5a}
+.tag{margin:0;font:10px/1.6 var(--f-pix);color:var(--dim)}
+.title .stack{width:100%;max-width:340px}
+.kit{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.kit li{font:8px/1.4 var(--f-pix);background:var(--panel);padding:8px 10px;clip-path:var(--notch);color:var(--ink)}
 
 /* MOLLY */
-.molly{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:grid;gap:8px}
-.who{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.14em;color:var(--cu);text-transform:uppercase}
-.molly p{margin:0}
+.talk{display:flex;gap:10px;align-items:flex-start}
+.talk canvas{width:72px;height:64px;flex:none}
+.say{position:relative;flex:1;min-width:0;min-height:64px;background:#12162a;color:var(--ink);padding:12px 14px;clip-path:var(--notch);box-shadow:inset 0 0 0 3px var(--cu);font-size:17px;cursor:pointer}
+.say .who{display:block;font:8px var(--f-pix);color:var(--cu);margin-bottom:6px;letter-spacing:.06em}
 
-/* Map */
-.maphead{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-.maphead h1{font-size:2.4rem;text-transform:uppercase}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-@media (min-width:560px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.tile{position:relative;text-align:left;background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:8px 10px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
-.tile .z{font-family:var(--f-mono);font-size:.75rem;color:var(--dim)}
-.tile .sym{font-family:var(--f-display);font-weight:800;font-size:2.6rem;line-height:1}
-.tile .nm{font-weight:700;font-size:.95rem}
-.tile .tp{font-size:.78rem;color:var(--dim);line-height:1.3}
-.tile .stt{margin-top:6px;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase}
-.tile.online{border-color:var(--ba)}
-.tile.online .stt{color:var(--ba)}
-.tile.next{border-color:var(--na);background:var(--panel2)}
-.tile.next .sym,.tile.next .stt{color:var(--na)}
-.tile.locked{opacity:.45;cursor:not-allowed}
-.tile.locked .stt{color:var(--dim)}
-.scoreline{font-family:var(--f-mono);font-size:.85rem;color:var(--dim)}
+/* Scenes */
+.scene{position:relative;background:#05060d;clip-path:var(--notch);box-shadow:inset 0 0 0 4px var(--line);padding:4px;display:flex;justify-content:center}
+.scene canvas{display:block;image-rendering:pixelated}
+.stag{position:absolute;left:8px;top:8px;font:8px/1.4 var(--f-pix);background:rgba(5,6,13,.75);padding:4px 6px;color:var(--ink)}
+.schips{position:absolute;right:8px;top:8px;display:flex;gap:4px}
+.chip{font:7px/1.4 var(--f-pix);background:rgba(5,6,13,.75);padding:4px 6px;color:var(--dim);text-transform:uppercase}
+.chip.re{color:var(--na)}
+.charge{position:absolute;left:8px;right:8px;bottom:8px;display:flex;align-items:center;gap:6px;background:rgba(5,6,13,.75);padding:4px 6px}
+.cbar{flex:1;height:8px;background:var(--line)}
+.cbar i{display:block;height:100%;background:var(--cu)}
+.timer{font:9px var(--f-pix);color:var(--na)}
+.timer.low{color:var(--sr);animation:blink .5s steps(2) infinite}
 
-/* Task */
-.task{display:flex;flex-direction:column;gap:14px}
-.meta{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--dim)}
-.chip.re{border-color:var(--na);color:var(--na)}
-.story{margin:0;color:var(--dim);font-style:italic}
-.q{font-size:1.14rem;line-height:1.5;margin:0}
-.paper{display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--na);border-radius:var(--r);padding:10px 12px;font-size:.92rem}
-.paper .lbl{flex:none;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;background:var(--na);color:var(--on-na);padding:3px 6px;border-radius:4px;margin-top:2px}
-.ans{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:12px}
-.ansrow{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
-.ansrow label{font-size:.75rem;color:var(--dim);display:block;margin-bottom:4px}
-.inp{font:600 1.35rem var(--f-mono);background:var(--hull);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:7.2em;min-width:0}
-.inp.sm{width:3.6em;font-size:1.05rem}
-.inp.wide{width:100%;font-size:1.1rem}
-.x10{font:600 1.35rem var(--f-mono);padding-top:30px}
-.expw{display:flex;gap:4px;align-items:center;margin-top:-4px}
-.sgn{width:40px;height:40px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font:700 1.1rem var(--f-mono)}
+/* Question terminal */
+.crt{background:#0d1424;clip-path:var(--notch);box-shadow:inset 0 0 0 4px var(--line);padding:14px 16px;font-size:19px;line-height:1.5;
+  background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 2px,transparent 2px 4px)}
+.crt .lab{display:block;margin-bottom:8px;color:var(--cu)}
+.crt p{margin:0}
+.paper{display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--dim)}
+.paper b{font:7px var(--f-pix);background:var(--na);color:var(--on-na);padding:4px 5px;flex:none;margin-top:2px}
+
+/* Device panels */
+.dev{display:grid;gap:12px}
+.devh{font:9px var(--f-pix);color:var(--na);letter-spacing:.04em;text-transform:uppercase;display:flex;justify-content:space-between;gap:8px}
+.lcd{background:#0f2a1f;color:#7dff9b;font:clamp(16px,5.4vw,22px)/1.2 var(--f-pix);padding:16px 12px;clip-path:var(--notch);box-shadow:inset 0 0 0 4px #1f4a33;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px;min-height:64px;overflow-x:auto}
+.lcd .fld{padding:2px 3px}
+.lcd .fld.act{background:rgba(125,255,155,.15)}
+.lcd .ph{opacity:.35}
+.lcd sup{font-size:.62em;line-height:1;vertical-align:.8em;display:inline-flex}
+.lcd .u{margin-left:auto;font-size:.6em;color:var(--na)}
+.cur{display:inline-block;width:.55em;height:1em;background:#7dff9b;vertical-align:-.1em;animation:blink 1s steps(2) infinite}
+.keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.key{font:15px var(--f-pix);min-height:52px;border:0;background:#3a4466;color:var(--ink);clip-path:var(--notch);box-shadow:inset -4px -4px 0 rgba(0,0,0,.35),inset 4px 4px 0 rgba(255,255,255,.14)}
+.key:active:not(:disabled){transform:translateY(2px)}
+.key.fn{font-size:10px;background:var(--panel2);color:var(--cu)}
+.key.fn.on{background:var(--cu);color:#04282b}
+.key.w2{grid-column:span 2}
+.key:disabled{opacity:.3}
 .units{display:flex;flex-wrap:wrap;gap:6px}
-.tog{min-height:40px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--hull);font-weight:700;font-size:.92rem}
-.tog[aria-pressed="true"]{background:var(--cu);border-color:var(--cu);color:var(--hull)}
-.tog.bad{border-color:var(--sr);color:var(--sr)}
-.tog.good{border-color:var(--ba);color:var(--ba)}
-.err{color:var(--sr);font-size:.9rem;margin:0}
+.sw{font:9px var(--f-pix);min-height:40px;padding:8px 10px;border:0;background:#1a1f36;color:var(--dim);clip-path:var(--notch);box-shadow:inset 0 0 0 3px var(--line)}
+.sw[aria-pressed="true"]{background:var(--cu);color:#04282b;box-shadow:inset 0 -4px 0 rgba(0,0,0,.25)}
+.sw.good{box-shadow:inset 0 0 0 3px var(--ba);color:var(--ba)}
+.sw.bad{box-shadow:inset 0 0 0 3px var(--sr);color:var(--sr)}
+.err{color:var(--sr);font-size:15px;margin:0;min-height:1em}
+.lever{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lv{border:0;background:#1a1f36;color:var(--dim);font:8px/1.8 var(--f-pix);padding:12px 8px;clip-path:var(--notch);box-shadow:inset 0 0 0 3px var(--line)}
+.lv b{font-size:14px;display:block;color:var(--ink)}
+.lv[aria-pressed="true"]{background:var(--na);color:var(--on-na);box-shadow:inset 0 -5px 0 rgba(0,0,0,.25)}
+.lv[aria-pressed="true"] b{color:var(--on-na)}
+
+/* Reactor */
+.eqrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;justify-content:center}
+.sp{display:flex;align-items:center;gap:4px}
+.step{display:flex;flex-direction:column;align-items:center;gap:2px}
+.sbtn{width:36px;height:28px;border:0;background:var(--panel2);font:12px var(--f-pix);clip-path:var(--notch)}
+.coef{font:16px var(--f-pix);color:var(--na);min-width:1.4em;text-align:center}
+.form{font-size:22px}
+.op{font-size:20px;color:var(--dim)}
+.chamber{display:grid;gap:6px;background:#0d1424;padding:10px;clip-path:var(--notch)}
+.chrow{display:grid;grid-template-columns:30px minmax(0,1fr) 22px minmax(0,1fr);gap:6px;align-items:center}
+.chrow b{font:10px var(--f-pix)}
+.dots{display:flex;flex-wrap:wrap;gap:2px;align-items:center;min-height:14px}
+.dots.r{justify-content:flex-start}
+.dot{width:8px;height:8px;display:inline-block}
+.dots em{font:8px var(--f-pix);font-style:normal;color:var(--dim);margin-left:4px}
+.eqs{font:12px var(--f-pix);text-align:center}
+.eqs.y{color:var(--ba)}.eqs.n{color:var(--sr)}
+.core{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font:8px/1.6 var(--f-pix)}
+.core .st{padding:4px 6px}
+.core .st.y{background:var(--ba);color:#0b1a07}.core .st.n{background:var(--sr);animation:blink .8s steps(2) infinite}
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gauge{background:#0d1424;clip-path:var(--notch);padding:10px;display:grid;gap:8px;justify-items:center;text-align:center}
+.gv{font:26px var(--f-pix);color:var(--na)}
+.plates{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.plate{min-height:84px;font-size:13px}
+
+/* Radar */
+.scope{position:relative;height:170px;background:#07140e;clip-path:var(--notch);overflow:hidden;display:flex;align-items:center;justify-content:center;
+  background-image:linear-gradient(rgba(99,199,77,.12) 2px,transparent 2px),linear-gradient(90deg,rgba(99,199,77,.12) 2px,transparent 2px);background-size:24px 24px}
+.sweep{position:absolute;left:50%;top:50%;width:400px;height:400px;margin:-200px 0 0 -200px;background:conic-gradient(from 0deg,rgba(99,199,77,.4),transparent 20%);animation:spin 3s steps(24) infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.blip{position:relative;z-index:1;background:rgba(7,20,14,.9);box-shadow:inset 0 0 0 3px var(--ba);clip-path:var(--notch);padding:12px 14px;font-size:20px;max-width:92%;text-align:center}
+.chans{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chans .pb{min-height:58px;flex-direction:column;gap:4px}
+.chans .pb small{font-size:7px;color:var(--dim)}
+.chans .pb:last-child{grid-column:1/-1}
+
+/* Water tank */
+.tank{position:relative;background:linear-gradient(#0a2c48,#081a2e);clip-path:var(--notch);box-shadow:inset 0 0 0 4px var(--steel);padding:12px;min-height:110px;overflow:hidden}
+.tank .lab{display:block;margin-bottom:10px;color:var(--cu)}
+.tiles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bb{border:0;min-height:48px;padding:10px 14px;font-size:19px;color:var(--ink);background:rgba(44,232,245,.14);clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px);box-shadow:inset 0 0 0 3px var(--cu);animation:bob 2.4s steps(4) infinite}
+.bb:nth-child(2n){animation-delay:-.8s}.bb:nth-child(3n){animation-delay:-1.6s}
+@keyframes bob{50%{transform:translateY(-4px)}}
+.bb.cmp{background:rgba(254,174,52,.14);box-shadow:inset 0 0 0 3px var(--na)}
+.bb.solid{animation:none;clip-path:var(--notch);background:repeating-linear-gradient(45deg,#c0cbdc 0 6px,#8b93af 6px 12px);color:#10131f;box-shadow:inset 0 0 0 3px var(--ink);font-weight:700}
+.bb.vent{opacity:.4;text-decoration:line-through;text-decoration-thickness:3px;box-shadow:inset 0 0 0 3px var(--dim)}
+.bb.gone{animation:gone 1s steps(5) forwards}
+@keyframes gone{to{transform:translateY(-60px);opacity:0}}
+.bb.drop{animation:drop .8s steps(4) forwards}
+@keyframes drop{from{transform:translateY(-20px)}to{transform:translateY(8px)}}
+.shk{animation:shk .3s steps(2)}
+@keyframes shk{33%{transform:translateX(-6px)}66%{transform:translateX(6px)}}
+.flow{text-align:center;font:10px var(--f-pix);color:var(--dim)}
+
+/* Power cells */
+.rxwrap{position:relative;display:grid;gap:12px}
+.rxwrap svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;overflow:visible}
+.cells{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cell{position:relative;border:0;min-height:96px;padding:18px 8px 10px;background:#1a1f36;clip-path:var(--notch);box-shadow:inset 0 0 0 4px var(--steel);font-size:21px;touch-action:none;display:grid;justify-items:center;align-content:center;gap:4px}
+.cell::before{content:"";position:absolute;top:0;left:50%;width:22px;height:8px;margin-left:-11px;background:var(--steel)}
+.cell .tg{font:7px var(--f-pix);min-height:1em}
+.cell.ox{box-shadow:inset 0 0 0 4px var(--na)}.cell.ox .tg{color:var(--na)}
+.cell.red{box-shadow:inset 0 0 0 4px var(--cu)}.cell.red .tg{color:var(--cu)}
+.outs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.outs .bb{animation:none;background:#1a1f36;box-shadow:inset 0 0 0 3px var(--line);font-size:17px}
+.edot{position:absolute;width:10px;height:10px;background:var(--cu);box-shadow:0 0 0 2px #04282b;pointer-events:none;z-index:4}
+
+/* Cargo */
+.crate{background:repeating-linear-gradient(90deg,#b86f50 0 18px,#8a4b2a 18px 22px);clip-path:var(--notch);box-shadow:inset 0 0 0 5px #5c2e1a;padding:16px;display:grid;gap:10px}
+.crate.open{animation:pop .5s steps(3)}
+@keyframes pop{50%{transform:scale(1.03)}}
+.label{background:#e8d9a8;color:#2a1a0a;clip-path:var(--notch);padding:10px 12px;display:grid;gap:4px}
+.label .lab{color:#6a4a2a}
+.inpx{font:20px var(--f-body);background:#fff8e0;color:#2a1a0a;border:0;box-shadow:inset 0 0 0 3px #6a4a2a;padding:10px;width:100%;min-width:0}
+.inpx:focus{outline:none;box-shadow:inset 0 0 0 3px var(--blue)}
+.inpx:disabled{opacity:.8}
+
+/* Fabricator */
+.slots{display:flex;gap:6px;flex-wrap:wrap;min-height:56px;background:#0d1424;padding:8px;clip-path:var(--notch)}
+.slot{width:44px;height:40px;box-shadow:inset 0 0 0 2px var(--line)}
+.cart{border:0;min-width:84px;min-height:56px;padding:18px 8px 8px;font:10px var(--f-pix);background:#1a1f36;color:var(--ink);position:relative;clip-path:var(--notch);box-shadow:inset 0 0 0 3px var(--steel)}
+.cart::before{content:"";position:absolute;left:4px;right:4px;top:4px;height:8px;background:var(--c,var(--na))}
+.cart[aria-pressed="true"]{background:var(--panel2);box-shadow:inset 0 0 0 3px var(--cu)}
+.cart.good{box-shadow:inset 0 0 0 3px var(--ba)}.cart.bad{box-shadow:inset 0 0 0 3px var(--sr);animation:shk .3s steps(2)}
+
+/* Hints & feedback */
 .hints{display:flex;flex-wrap:wrap;gap:8px}
 .hintbox{display:grid;gap:10px}
-
-.rule{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;background:var(--panel)}
-.rl{display:block;font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--na);margin-bottom:4px}
+.rule{background:#e8d9a8;color:#2a1a0a;clip-path:var(--notch);padding:12px 14px;font-size:16px}
+.rule .lab{display:block;color:#8a4b2a;margin-bottom:6px}
 .rule p{margin:0}
 .tscroll{overflow-x:auto}
-.ctab{border-collapse:collapse;font-size:.9rem;width:100%;min-width:320px}
-.ctab th,.ctab td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
-.ctab th{font-family:var(--f-mono);font-size:.7rem;text-transform:uppercase;color:var(--dim);letter-spacing:.08em}
-
-/* Feedback */
-.fb{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--panel)}
-.fbh{padding:10px 14px;font-family:var(--f-display);font-weight:800;font-size:1.5rem;text-transform:uppercase;letter-spacing:.02em}
-.fb.ok .fbh{background:var(--ba);color:var(--hull)}
-.fb.no .fbh{background:var(--sr);color:var(--hull)}
-.fbb{padding:12px 14px;display:grid;gap:12px}
+.ctab{border-collapse:collapse;font-size:15px;width:100%;min-width:300px}
+.ctab th,.ctab td{text-align:left;padding:4px 6px;border-bottom:2px solid rgba(42,26,10,.2)}
+.ctab th{font:7px var(--f-pix);text-transform:uppercase}
+.fb{padding:0;overflow:hidden}
+.fbh{font:13px/1.3 var(--f-pix);padding:14px 16px;text-transform:uppercase}
+.fb.ok .fbh{background:var(--ba);color:#0b1a07}
+.fb.no .fbh{background:var(--sr);color:var(--ink)}
+.fbb{padding:14px 16px 16px;display:grid;gap:12px;font-size:17px}
 .fbb p{margin:0}
 .checks{display:grid;gap:4px;margin:0;padding:0;list-style:none}
-.checks li{display:grid;grid-template-columns:22px 1fr;gap:6px}
-.mk{font-weight:700;font-family:var(--f-mono)}
+.checks li{display:grid;grid-template-columns:26px 1fr;gap:6px}
+.mk{font:11px var(--f-pix);padding-top:3px}
 .mk.y{color:var(--ba)}.mk.n{color:var(--sr)}
-.work{margin:0;padding-left:1.4em;display:grid;gap:4px;font-size:.95rem}
-.work li::marker{color:var(--dim);font-family:var(--f-mono);font-size:.8em}
-.sub-h{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:0}
-.dmg{color:var(--sr);font-family:var(--f-mono);font-size:.85rem}
-.gain{color:var(--na);font-family:var(--f-mono);font-size:.85rem}
+.work{margin:0;padding:10px 10px 10px 34px;display:grid;gap:4px;font-size:16px;background:#0d1424;clip-path:var(--notch)}
+.work li::marker{font:9px var(--f-pix);color:var(--dim)}
+.gain{font:9px var(--f-pix);color:var(--na);margin:0}
+.dmg{font:9px/1.6 var(--f-pix);color:var(--sr);margin:0}
 
-/* Balancing */
-.bal{display:grid;gap:12px}
-.eqrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;justify-content:center;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 8px}
-.sp{display:flex;align-items:center;gap:4px}
-.step{display:flex;flex-direction:column;align-items:center}
-.sbtn{width:34px;height:30px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);font-weight:700;line-height:1}
-.coef{font:700 1.2rem var(--f-mono);color:var(--na);min-width:1.4em;text-align:center}
-.form{font-size:1.25rem}
-.op{font-size:1.2rem;color:var(--dim)}
-.atoms{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px;max-width:340px}
-.ah{font-family:var(--f-mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);padding:0 8px}
-.ael{font-weight:700;padding:4px 8px}
-.acell{font-family:var(--f-mono);text-align:center;border-radius:6px;padding:4px}
-.acell.eq{background:color-mix(in srgb,var(--ba) 22%,transparent);color:var(--ba)}
-.acell.ne{background:color-mix(in srgb,var(--sr) 18%,transparent);color:var(--sr)}
-.moles{margin:0;font-size:.88rem}
+/* Map */
+.maptop{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.ship{display:flex;flex-direction:column;align-items:stretch}
+.nose{height:36px;margin:0 22%;background:var(--steel);clip-path:polygon(30% 0,70% 0,70% 12px,85% 12px,85% 24px,100% 24px,100% 100%,0 100%,0 24px,15% 24px,15% 12px,30% 12px)}
+.hullbox{position:relative;background:var(--hull);clip-path:var(--notch);box-shadow:inset 0 0 0 4px var(--steel);padding:10px}
+.trunk{position:absolute;left:50%;top:10px;bottom:10px;width:6px;margin-left:-3px;background:var(--line)}
+.trunk i{position:absolute;left:0;right:0;bottom:0;background:var(--cu)}
+.rooms{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.room{position:relative;border:0;padding:4px;background:#05060d;clip-path:var(--notch);box-shadow:inset 0 0 0 4px var(--line);display:flex;flex-direction:column;gap:0;text-align:left;min-width:0}
+.room canvas{width:100%;height:auto;display:block;image-rendering:pixelated}
+.room.span{grid-column:1/-1}
+.room.span canvas{width:60%;margin:0 auto}
+.rlab{display:flex;align-items:center;gap:6px;font:7px/1.4 var(--f-pix);padding:6px 4px 3px;text-transform:uppercase}
+.led{width:8px;height:8px;flex:none;background:var(--line)}
+.room.st-online{box-shadow:inset 0 0 0 4px var(--ba)}
+.room.st-online .led{background:var(--ba)}
+.room.st-next{box-shadow:inset 0 0 0 4px var(--na)}
+.room.st-next .led{background:var(--na);animation:blink .8s steps(2) infinite}
+.room.st-locked .rlab{color:var(--dim)}
+.room.zoom{animation:zoom .3s steps(4) forwards;z-index:5}
+@keyframes zoom{to{transform:scale(1.25);filter:brightness(1.8)}}
+.tail{display:flex;justify-content:center}
+.tail canvas{width:60%;height:auto}
 
-/* Equation tiles (net ionic, redox) */
-.side{display:grid;gap:6px}
-.side h3{margin:0;font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600}
-.tiles{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.ct{min-height:46px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-size:1.12rem}
-.ct.solid{border-style:dashed;background:var(--panel)}
-.ct.ion{border-color:var(--cu)}
-.ct.struck{text-decoration:line-through;text-decoration-thickness:2px;opacity:.45;border-color:var(--line)}
-.ct.sel-ox{border-color:var(--na);box-shadow:0 0 0 2px var(--na) inset}
-.ct.sel-red{border-color:var(--cu);box-shadow:0 0 0 2px var(--cu) inset}
-.tag{display:block;font-family:var(--f-mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
-.sel-ox .tag{color:var(--na)}.sel-red .tag{color:var(--cu)}
-.arrowline{text-align:center;color:var(--dim);font-size:1.3rem}
-.shake{animation:shake .35s}
-@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
-.edot{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--cu);box-shadow:0 0 10px var(--cu);pointer-events:none;z-index:4}
-.rxwrap{position:relative;display:grid;gap:12px}
+/* Toasts */
+#toasts{position:fixed;left:0;right:0;top:calc(64px + env(safe-area-inset-top,0px));z-index:70;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 16px}
+.toast{display:flex;align-items:center;gap:10px;background:var(--panel);clip-path:var(--notch);box-shadow:inset 0 0 0 4px var(--na);padding:10px 14px;max-width:360px;animation:tin .3s steps(3),tout .3s steps(3) 2.7s forwards}
+.toast canvas{width:36px;height:42px;flex:none}
+.toast b{display:block;font:9px/1.5 var(--f-pix);color:var(--na)}
+.toast span{font-size:15px}
+@keyframes tin{from{transform:translateY(-30px);opacity:0}}
+@keyframes tout{to{transform:translateY(-30px);opacity:0}}
 
-.bins{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.bins .btn{min-height:56px}
-.bins .btn:last-child:nth-child(odd){grid-column:1/-1}
-.bigeq{font-size:1.35rem;text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 10px;overflow-x:auto}
-
-/* Report */
-.rep{display:grid;gap:10px}
-.rrow{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:4px 10px;align-items:center}
-.rbar{grid-column:1/-1;height:8px;background:var(--panel2);border-radius:4px;overflow:hidden}
-.rbar i{display:block;height:100%}
-.rpct{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+/* Badges & report */
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.bdg{display:grid;justify-items:center;text-align:center;gap:6px;padding:12px 10px}
+.bdg canvas{width:48px;height:56px}
+.bdg b{font:8px/1.5 var(--f-pix);color:var(--na)}
+.bdg.lock{opacity:.45}.bdg.lock b{color:var(--dim)}
+.bdg span{font-size:14px;color:var(--dim)}
+.rep{display:grid;gap:12px}
+.rrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:16px}
+.rsegs{grid-column:1/-1;display:flex;gap:2px}
+.rsegs i{flex:1;height:10px;background:var(--line)}
+.rpct{font:10px var(--f-pix)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.stat{background:#0d1424;clip-path:var(--notch);padding:10px;display:grid;gap:6px}
+.stat b{font:16px var(--f-pix);color:var(--na)}
 
 /* Data sheet */
-.sheet{position:fixed;inset:0;z-index:30;background:rgba(5,9,14,.72);display:flex;align-items:flex-end;justify-content:center}
-.sheetin{background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;width:100%;max-width:640px;max-height:85vh;overflow:auto;
-  padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px))}
-.sheethd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.sheethd h2{font-size:1.8rem;text-transform:uppercase}
-.pt{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:6px}
-.pc{border:1px solid var(--line);border-radius:4px;padding:4px 6px;background:var(--hull)}
-.pc b{display:block;font-family:var(--f-display);font-size:1.4rem;line-height:1.1}
-.pc span{font-family:var(--f-mono);font-size:.72rem;color:var(--dim)}
-.const{display:grid;gap:4px;margin-top:12px;font-size:.92rem}
+.sheet{position:fixed;inset:0;z-index:80;background:rgba(5,6,13,.8);display:flex;align-items:flex-end;justify-content:center}
+.sheetin{width:100%;max-width:640px;max-height:85vh;overflow:auto;padding:18px 16px calc(22px + env(safe-area-inset-bottom,0px))}
+.sheethd{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+.pt{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+.pc{background:#0d1424;clip-path:var(--notch);padding:6px 7px;box-shadow:inset 0 0 0 2px var(--line)}
+.pc b{display:block;font:14px/1.3 var(--f-pix);color:var(--cu)}
+.pc span{font:8px var(--f-pix);color:var(--dim)}
+.const{display:grid;gap:4px;margin-top:14px;font-size:16px}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
-<header class="hud" id="hud"><div class="hudin">
-  <button class="brand" data-act="map" aria-label="Station map"><span class="bl">Avogadro Stn</span><span class="bs">Av</span></button>
-  <div class="meter hullm"><span class="ml">Hull</span><div class="bar"><i id="hullbar" style="width:100%"></i></div><span class="mv" id="hullv">100</span></div>
-  <div class="meter en"><span class="ml">Energy</span><span class="mv" id="enev">20</span></div>
-  <button class="databtn" data-act="sheet">Data</button>
+<canvas id="stars" aria-hidden="true"></canvas>
+<div id="app">
+<header class="hud"><div class="hudin">
+  <button class="rank" data-act="badges" aria-label="Rank and badges"><canvas id="rankico" class="pix" width="9" height="9"></canvas><span id="rankname">Cadet</span></button>
+  <div class="hullw"><span class="lab">Hull</span><div class="segs" id="segs"></div></div>
+  <div class="enw"><span class="lab">Nrg</span><span id="enev">20</span></div>
+  <span id="combo" class="combo" hidden>x3</span>
+  <button class="icon" data-act="mute" id="mute" aria-label="Toggle sound">SND</button>
+  <button class="icon" data-act="sheet" aria-label="Data sheet">PT</button>
 </div></header>
-
 <main class="wrap" id="view">
-  <section class="title">
-    <h1 class="disp">Avogadro Station</h1>
-    <p class="lede">Loading station systems…</p>
-  </section>
+  <section class="title"><h1 class="logo"><span class="l1">AVOGADRO</span><span class="l2">STATION</span></h1><p class="tag">Booting…</p></section>
 </main>
-
-<div id="sheet" class="sheet" hidden><div class="sheetin" role="dialog" aria-label="Data sheet">
-  <div class="sheethd"><h2 class="disp">Data sheet</h2><button class="btn small" data-act="sheet-close">Close</button></div>
+</div>
+<div id="flash"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="toasts" aria-live="polite"></div>
+<div id="sheet" class="sheet" hidden><div class="sheetin win" role="dialog" aria-label="Data sheet">
+  <div class="sheethd"><span class="h1" style="font-size:16px">Data sheet</span><button class="pb sm" data-act="sheet-close">Close</button></div>
   <div class="pt" id="ptable"></div>
   <div class="const">
-    <div><b>Avogadro's number:</b> <span class="mono">6.022 × 10<sup>23</sup></span> particles/mol</div>
+    <div><b>Avogadro's number:</b> 6.022 × 10<sup>23</sup> particles/mol</div>
     <div><b>g → mol:</b> divide by molar mass (g/mol)</div>
     <div><b>mol → particles:</b> multiply by 6.022 × 10<sup>23</sup></div>
     <div><b>1 g</b> = 1000 mg</div>
   </div>
 </div></div>
-
 <script>
 (function(){
 'use strict';
 const NA = 6.022e23;
-
 /* ---------- Chemistry text formatter: C6H12O6 → subscripts, ^2+ → superscripts ---------- */
 function F(str){
   str = String(str); let o = '', i = 0, inTag = false;
@@ -610,8 +721,8 @@ const MODS = [
       {id:'q31', n:31, type:'calc', topic:'stoich', gen:'g2g', p:{rx:'ch4', a:'ch4', b:'co2', g:'16.0'}, story:'The methane thrusters vent CO2. Life support needs to know how much.'},
       {id:'q3', n:3, type:'calc', topic:'stoich', gen:'limit', p:{r:'cacn', mA:'2.8400', eA:-3, mB:'6.90', eB:-3}, story:'The fuel-line drier makes calcium chloride. Two reactants, limited supply. One runs out first.'}
     ]},
-  { id:'fin', code:'Fx', name:'Final Check', topics:[], final:true,
-    intro:['Final systems check.', 'I\'m running every system once more with new numbers. Anything that gave you trouble gets checked twice.', 'Treat this like the real quiz: paper, calculator, no hints if you can help it.'],
+  { id:'fin', code:'Br', name:'Bridge', topics:[], final:true,
+    intro:['Bad news. The hull is breaking up. We have to jump now.', 'The jump drive charges on correct answers. I\'m sending every system through once more with new numbers, and twice for anything that gave you trouble.', 'Treat this like the real quiz: paper, calculator, no hints if you can help it.'],
     outro:[], tasks:[] }
 ];
 const ORIG = MODS.flatMap(m => m.tasks);
@@ -695,80 +806,505 @@ function variantOf(t, reroute){
   return v;
 }
 
-/* ---------- State ---------- */
+
+/* ========================================================================
+   STATE
+   ======================================================================== */
 const KEY = 'avogadro-station-v1';
-function fresh(){ return { v:1, remix:false, hull:100, energy:20, patches:0, done:[], stats:{}, score:{n:0, ok:0}, missed:{}, cur:null, finished:false }; }
-function load(){ try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+function fresh(){ return { v:2, remix:false, hull:100, energy:20, patches:0, done:[], stats:{}, score:{n:0, ok:0}, missed:{}, cur:null, finished:false,
+  xp:0, streak:0, best:0, calcStreak:0, badges:[], sound:true, timer:false }; }
+function load(){ try { const s = localStorage.getItem(KEY); return s ? Object.assign(fresh(), JSON.parse(s)) : null; } catch (e) { return null; } }
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
 let st = load() || fresh();
 let ui = {};
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const view = document.getElementById('view');
-function show(html){ view.innerHTML = html; window.scrollTo(0, 0); hud(); }
-function hud(){
-  const h = Math.max(0, st.hull);
-  const bar = document.getElementById('hullbar'); bar.style.width = h + '%'; bar.classList.toggle('low', h < 35);
-  document.getElementById('hullv').textContent = h;
-  document.getElementById('enev').textContent = st.energy;
+/* ========================================================================
+   SOUND — tiny chiptune synth, no files
+   ======================================================================== */
+const SND = {
+  ctx:null,
+  init(){ if (this.ctx) return; try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} },
+  tone(f, d, type = 'square', v = .05, f2 = null, delay = 0){
+    const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + d + .02);
+  },
+  noise(d, v = .05, delay = 0){
+    const c = this.ctx, n = Math.floor(c.sampleRate * d), b = c.createBuffer(1, n, c.sampleRate), a = b.getChannelData(0);
+    for (let i = 0; i < n; i++) a[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const s = c.createBufferSource(), g = c.createGain(); s.buffer = b; g.gain.value = v; s.connect(g); g.connect(c.destination); s.start(c.currentTime + delay);
+  },
+  play(n){
+    if (!st.sound) return; this.init(); if (!this.ctx) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    const T = (...a) => this.tone(...a);
+    switch (n){
+      case 'tap': T(520, .04, 'square', .03); break;
+      case 'key': T(880, .03, 'square', .025); break;
+      case 'type': T(1400, .012, 'square', .006); break;
+      case 'ok': [523, 659, 784, 1047].forEach((f, i) => T(f, .09, 'square', .045, null, i * .07)); break;
+      case 'combo': [784, 988, 1175, 1568, 2093].forEach((f, i) => T(f, .08, 'square', .045, null, i * .05)); break;
+      case 'minor': T(330, .12, 'square', .05); T(262, .18, 'square', .05, null, .13); break;
+      case 'fail': T(220, .4, 'sawtooth', .06, 55); this.noise(.3, .05); break;
+      case 'jam': this.noise(.18, .07); T(110, .18, 'square', .05); break;
+      case 'pop': T(300, .07, 'square', .04, 1100); break;
+      case 'zip': T(200, .15, 'square', .03, 900); break;
+      case 'power': T(110, .6, 'square', .045, 880); [523, 784, 1047, 1568].forEach((f, i) => T(f, .12, 'square', .04, null, .55 + i * .09)); break;
+      case 'badge': [659, 784, 1047, 1319, 1568].forEach((f, i) => T(f, .1, 'triangle', .07, null, i * .08)); break;
+      case 'alarm': T(880, .15, 'square', .035); T(660, .15, 'square', .035, null, .17); break;
+      case 'zap': this.noise(.25, .04); T(1500, .3, 'sawtooth', .025, 300); break;
+      case 'warp': T(60, 2, 'sawtooth', .05, 2400); this.noise(1.8, .035); break;
+      case 'tick': T(1000, .03, 'square', .025); break;
+      case 'rank': [392, 523, 659, 784, 1047, 784, 1047].forEach((f, i) => T(f, .11, 'square', .05, null, i * .09)); break;
+    }
+  }
+};
+
+/* ========================================================================
+   PIXEL ART KIT
+   ======================================================================== */
+const C = { wall:'#262b44', seam:'#1b1f35', ceil:'#3a4466', floor:'#3a4466', floorD:'#2a3150', steel:'#8b93af', steelD:'#5a6988', pale:'#c0cbdc', white:'#eef0f8',
+  dark:'#0b0d1a', na:'#feae34', cu:'#2ce8f5', sr:'#e43b44', srD:'#6a1a22', ba:'#63c74d', blue:'#0099db', orange:'#f77622', pink:'#b55088', brown:'#8a4b2a', brownL:'#b86f50', brownD:'#5c2e1a', yel:'#fee761' };
+function K(ctx){
+  return {
+    r(x, y, w, h, c){ ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); },
+    p(x, y, c){ ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), 1, 1); },
+    line(x0, y0, x1, y1, c){
+      x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+      const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1; let e = dx + dy; ctx.fillStyle = c;
+      for (let n = 0; n < 400; n++){ ctx.fillRect(x0, y0, 1, 1); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy){ e += dy; x0 += sx; } if (e2 <= dx){ e += dx; y0 += sy; } }
+    },
+    circ(cx, cy, r, c){ ctx.fillStyle = c; for (let y = -r; y <= r; y++){ const w = Math.floor(Math.sqrt(r * r - y * y) + .5); ctx.fillRect(cx - w, cy + y, 2 * w + 1, 1); } },
+    ring(cx, cy, r, c){ ctx.fillStyle = c; for (let a = 0; a < 6.283; a += .5 / r) ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1); }
+  };
 }
-const molly = lines => `<div class="molly"><span class="who">MOLLY · station AI</span>${lines.map(l => `<p>${F(l)}</p>`).join('')}</div>`;
-const ruleCard = tp => `<div class="rule"><span class="rl">Rule · ${F(TOPICS[tp].name)}</span>${TOPICS[tp].rule.startsWith('<') ? F(TOPICS[tp].rule) : `<p>${F(TOPICS[tp].rule)}</p>`}</div>`;
+const act = (o, t) => o.lit >= 1 || o.live || (o.okUntil && t < o.okUntil);
+
+/* Rooms are drawn at 80×40 and scaled up with nearest-neighbour. */
+const DEV = {
+  med(k, t, o){
+    const a = act(o, t);
+    k.r(50, 8, 18, 11, C.steelD); k.r(51, 9, 16, 9, C.dark);
+    for (let x = 0; x < 16; x++){
+      let y = 13; if (a){ const ph = (x + Math.floor(t * 14)) % 16; y = ph === 5 ? 10 : ph === 6 ? 16 : ph === 7 ? 11 : 13; }
+      k.p(51 + x, y, a ? C.ba : (Math.floor(t * 2) % 2 ? C.sr : C.srD));
+    }
+    k.r(38, 27, 34, 3, C.steel); k.r(38, 24, 34, 3, C.pale); k.r(63, 22, 8, 3, C.white); k.r(39, 30, 2, 4, C.steelD); k.r(69, 30, 2, 4, C.steelD);
+    k.r(28, 7, 1, 27, C.steel); k.r(25, 33, 7, 1, C.steel); k.r(26, 7, 5, 1, C.steel);
+    k.r(25, 8, 6, 8, '#9ad8ff'); k.r(26, a ? 11 : 13, 4, a ? 5 : 3, C.blue);
+    k.line(28, 16, 40, 24, C.pale);
+    if (a){ const f = (t * 1.2) % 1; k.p(28 + f * 12, 16 + f * 8, C.cu); k.p(28 + ((f + .5) % 1) * 12, 16 + ((f + .5) % 1) * 8, C.cu); }
+    o.sx = 58; o.sy = 13;
+  },
+  air(k, t, o){
+    const a = act(o, t);
+    k.circ(40, 19, 12, C.steelD); k.circ(40, 19, 10, C.dark);
+    const ang = a ? t * 9 : .4 + (o.lit > 0 ? Math.sin(t) * .1 : 0);
+    for (let i = 0; i < 4; i++){ const an = ang + i * Math.PI / 2; k.line(40, 19, 40 + Math.cos(an) * 9, 19 + Math.sin(an) * 9, C.steel); k.line(40, 19, 40 + Math.cos(an + .3) * 8, 19 + Math.sin(an + .3) * 8, C.steel); }
+    k.circ(40, 19, 2, C.pale);
+    k.r(7, 14, 9, 20, C.blue); k.r(8, 12, 7, 2, C.pale); k.r(10, 10, 3, 2, C.steel); k.r(8, 20, 7, 3, C.white);
+    k.r(64, 14, 9, 20, C.ba); k.r(65, 12, 7, 2, C.pale); k.r(67, 10, 3, 2, C.steel); k.r(65, 20, 7, 3, C.white);
+    if (a) for (let i = 0; i < 5; i++){ const ph = (t * .9 + i * .21) % 1; k.p(53 + ph * 9, 10 + i * 5, 'rgba(238,240,248,.6)'); k.p(27 - ph * 9, 12 + i * 4, 'rgba(238,240,248,.6)'); }
+    o.sx = 40; o.sy = 19;
+  },
+  fab(k, t, o){
+    const a = act(o, t);
+    k.r(20, 7, 38, 27, C.steelD); k.r(22, 9, 34, 24, C.dark); k.r(22, 12, 34, 1, C.steel);
+    const hx = a ? 24 + ((Math.sin(t * 3) + 1) / 2) * 26 : 30;
+    k.r(hx, 10, 5, 4, C.na); k.p(hx + 2, 14, a ? C.yel : C.na);
+    const h = a ? 2 + Math.floor((t * 2) % 12) : 2; k.r(33, 33 - h, 12, h, C.cu); k.r(33, 33 - h, 12, 1, '#9ff7ff');
+    [C.sr, C.blue, C.ba, C.na].forEach((c, i) => { const x = 62 + (i % 2) * 8, y = 10 + Math.floor(i / 2) * 11; k.r(x, y, 6, 9, C.steelD); k.r(x + 1, y + 1, 4, 4, c); });
+    o.sx = 38; o.sy = 20;
+  },
+  rx(k, t, o){
+    const a = act(o, t);
+    k.r(4, 24, 30, 3, C.steelD); k.r(46, 24, 30, 3, C.steelD);
+    if (a) for (let i = 0; i < 4; i++){ k.p(4 + ((t * 24 + i * 8) % 30), 25, C.cu); k.p(75 - ((t * 24 + i * 8) % 30), 25, C.cu); }
+    k.r(31, 5, 18, 29, '#3a4466'); k.r(33, 7, 14, 25, C.dark);
+    const pulse = (Math.sin(t * 5) + 1) / 2;
+    const glow = a ? (pulse > .5 ? '#9ff7ff' : C.cu) : o.lit < 1 ? (Math.random() < .5 ? C.sr : C.srD) : '#1a4a5a';
+    k.r(35, 9, 10, 21, glow);
+    if (a) for (let i = 0; i < 5; i++) k.p(36 + ((i * 3 + Math.floor(t * 8)) % 8), 9 + ((i * 7 + Math.floor(t * 12)) % 21), C.white);
+    [10, 19, 28].forEach(y => k.r(31, y, 18, 2, C.steel));
+    o.sx = 40; o.sy = 18;
+  },
+  sen(k, t, o){
+    const a = act(o, t);
+    k.circ(24, 19, 12, C.steelD); k.circ(24, 19, 11, '#0a1f16'); k.ring(24, 19, 7, '#1f4a30'); k.r(13, 19, 23, 1, '#1f4a30'); k.r(24, 8, 1, 23, '#1f4a30');
+    const an = a ? t * 3 : 1.1; k.line(24, 19, 24 + Math.cos(an) * 11, 19 + Math.sin(an) * 11, C.ba);
+    if (a && Math.floor(t * 2) % 2){ k.r(29, 13, 2, 2, C.ba); k.r(18, 23, 2, 2, C.ba); }
+    k.r(44, 25, 32, 9, C.steelD); k.r(44, 25, 32, 2, C.steel);
+    for (let i = 0; i < 6; i++) k.r(47 + i * 5, 29, 3, 2, a && ((Math.floor(t * 4) + i) % 3 === 0) ? C.na : '#3a4466');
+    k.r(59, 14, 2, 11, C.steel); for (let x = -7; x <= 7; x++) k.p(60 + x, 8 + Math.floor(x * x / 10), C.pale); k.p(60, 11, a ? C.sr : C.steelD);
+    o.sx = 24; o.sy = 19;
+  },
+  h2o(k, t, o){
+    const a = act(o, t);
+    k.r(14, 6, 52, 28, C.steel); k.r(16, 8, 48, 26, C.dark);
+    const clean = a || o.lit >= 1;
+    k.r(16, 14, 48, 20, clean ? C.blue : '#4a5a2a'); k.r(16, 14, 48, 1, clean ? '#6fd0ff' : '#6a7a3a');
+    for (let i = 0; i < 7; i++){ const ph = (t * .5 + i * .17) % 1; k.p(19 + i * 7, 33 - ph * 18, clean ? C.white : '#8a8a4a'); }
+    if (!clean) for (let i = 0; i < 6; i++) k.p(18 + (i * 13) % 44, 18 + (i * 7) % 14, '#2a3a1a');
+    k.r(66, 26, 12, 3, C.steelD); k.r(2, 10, 12, 3, C.steelD);
+    o.sx = 40; o.sy = 20;
+  },
+  pow(k, t, o){
+    const a = act(o, t);
+    [12, 34, 56].forEach((x, i) => {
+      k.r(x, 10, 12, 23, C.steelD); k.r(x + 4, 8, 4, 2, C.steel); k.r(x + 2, 12, 8, 19, C.dark);
+      const lv = a ? 3 + Math.floor((t * 4 + i * 2) % 3) : o.lit >= 1 ? 4 : (Math.floor(t * 2 + i) % 2 ? 1 : 0);
+      for (let j = 0; j < lv; j++) k.r(x + 2, 28 - j * 4, 8, 3, a || o.lit >= 1 ? C.ba : C.sr);
+      if (a && i < 2 && Math.random() < .7){ let y = 8; for (let s = 0; s < 10; s++){ y += Math.random() < .5 ? -1 : 1; y = Math.max(4, Math.min(10, y)); k.p(x + 8 + s * 2, y, C.yel); k.p(x + 9 + s * 2, y, C.cu); } }
+    });
+    o.sx = 40; o.sy = 20;
+  },
+  crg(k, t, o){
+    const a = act(o, t);
+    const crate = (x, y, w, h) => { k.r(x, y, w, h, C.brownD); k.r(x + 1, y + 1, w - 2, h - 2, C.brownL); k.line(x + 1, y + 1, x + w - 2, y + h - 2, C.brown); k.line(x + w - 2, y + 1, x + 1, y + h - 2, C.brown); };
+    crate(4, 22, 16, 12); crate(21, 22, 16, 12); crate(38, 22, 16, 12); crate(12, 10, 16, 12); crate(29, 10, 16, 12);
+    k.r(58, 20, 18, 14, C.brownD); k.r(59, 21, 16, 12, C.brownL); k.r(62, 26, 10, 4, '#e8d9a8');
+    if (a){ k.r(58, 13, 18, 3, C.brownD); k.r(60, 20, 14, 2, C.na); if (Math.floor(t * 4) % 2){ k.p(63, 17, C.yel); k.p(70, 15, C.white); k.p(66, 12, C.yel); } }
+    else k.r(58, 19, 18, 2, C.brownD);
+    o.sx = 67; o.sy = 24;
+  },
+  eng(k, t, o){
+    const a = act(o, t);
+    k.r(4, 9, 38, 25, C.steelD); for (let i = 0; i < 6; i++){ k.p(7 + i * 6, 11, C.steel); k.p(7 + i * 6, 31, C.steel); }
+    k.r(8, 16, 30, 2, '#3a4466'); k.r(8, 24, 30, 2, '#3a4466');
+    k.r(12, 18, 6, 6, a ? C.na : C.srD); k.r(24, 18, 6, 6, a ? C.na : C.srD);
+    [11, 23].forEach(y0 => {
+      for (let i = 0; i < 9; i++){ const g = Math.floor(i / 3); k.r(42 + i, y0 - g, 1, 6 + 2 * g, C.steel); }
+      if (a){ const L = 14 + Math.floor(Math.random() * 10); for (let i = 0; i < L; i++){ const w = Math.max(1, 9 - Math.floor(i / 2)); const c = i < 3 ? C.white : i < 7 ? C.yel : i < 12 ? C.na : i < 17 ? C.orange : C.sr; k.r(51 + i, y0 + 3 - w / 2, 1, w, c); } }
+      else if (o.lit < 1 && Math.random() < .25) k.r(52 + Math.random() * 6, y0 + 1 + Math.random() * 3, 2, 2, '#5a6988');
+    });
+    o.sx = 20; o.sy = 20;
+  },
+  fin(k, t, o){
+    const a = act(o, t) || o.warp;
+    k.r(6, 5, 68, 20, C.steelD); k.r(8, 7, 64, 16, C.dark);
+    k.circ(62, 17, 5, C.pink); k.r(55, 17, 14, 1, '#7a3a60');
+    const sp = o.warp ? 90 : a ? 10 : 3;
+    for (let i = 0; i < 16; i++){ const x = 8 + ((i * 37 + t * sp * (1 + (i % 3))) % 64), y = 8 + (i * 53) % 14; if (o.warp) k.r(Math.max(8, x - 6), y, Math.min(6, x - 8 + 1), 1, C.white); else k.p(x, y, i % 4 ? C.white : C.cu); }
+    k.r(10, 27, 60, 3, C.steel); k.r(10, 30, 60, 4, C.steelD);
+    for (let i = 0; i < 8; i++) k.r(14 + i * 7, 28, 3, 1, (Math.floor(t * 3) + i) % 4 === 0 ? C.na : '#3a4466');
+    k.r(36, 22, 8, 8, C.pink); k.r(34, 29, 12, 2, C.pink);
+    if (o.charge != null){ k.r(20, 32, 40, 1, C.dark); k.r(20, 32, Math.round(40 * o.charge), 1, C.cu); }
+    o.sx = 40; o.sy = 28;
+  }
+};
+function drawRoom(ctx, id, t, o){
+  const k = K(ctx), W = 80, H = 40;
+  k.r(0, 0, W, H, C.wall);
+  for (let x = 0; x < W; x += 16) k.r(x, 4, 1, 30, C.seam);
+  k.r(0, 12, W, 1, C.seam);
+  k.r(0, 0, W, 4, C.ceil);
+  const lightOn = o.lit > 0 && !(o.lit < 1 && Math.random() < .12);
+  [16, 58].forEach(x => { k.r(x, 3, 8, 1, lightOn ? '#fff3b0' : C.seam); if (lightOn){ ctx.fillStyle = 'rgba(255,243,176,.05)'; for (let i = 0; i < 6; i++) ctx.fillRect(x - i, 4 + i * 4, 8 + 2 * i, 4); } });
+  k.r(0, 34, W, 6, C.floor); k.r(0, 34, W, 1, C.steelD); for (let x = 0; x < W; x += 4) k.r(x, 37, 2, 1, C.floorD);
+  DEV[id](k, t, o);
+  const dark = .65 * (1 - Math.min(1, o.lit));
+  if (dark > 0){ ctx.fillStyle = `rgba(5,6,16,${dark})`; ctx.fillRect(0, 0, W, H); }
+  if (o.alarm){ const on = Math.floor(t * 3) % 2 === 0; k.r(2, 1, 3, 2, on ? C.sr : C.srD); k.r(75, 1, 3, 2, on ? C.srD : C.sr); if (on){ ctx.fillStyle = 'rgba(228,59,68,.12)'; ctx.fillRect(0, 0, W, H); } }
+  if (o.lit < 1 && !o.live && Math.random() < .35){ const x = (o.sx || 40) + Math.round(Math.random() * 16 - 8), y = (o.sy || 20) + Math.round(Math.random() * 12 - 6); k.p(x, y, C.white); k.p(x + 1, y, C.na); k.p(x - 1, y + 1, C.orange); k.p(x, y - 1, C.yel); }
+  if (o.failUntil && t < o.failUntil){ ctx.fillStyle = 'rgba(228,59,68,.28)'; ctx.fillRect(0, 0, W, H); for (let i = 0; i < 10; i++) k.p(8 + Math.random() * 64, 6 + Math.random() * 26, [C.white, C.na, C.orange][i % 3]); }
+}
+
+/* MOLLY: an 18×16 monitor-headed robot */
+const molly = { expr:'neutral', talkUntil:0 };
+function drawMolly(ctx, t){
+  const k = K(ctx); ctx.clearRect(0, 0, 18, 16);
+  const e = molly.expr, alarm = e === 'alarm';
+  k.r(8, 0, 2, 2, Math.floor(t * 2) % 2 ? C.sr : C.srD); k.r(8, 2, 2, 1, C.steel);
+  k.r(1, 3, 16, 12, C.steel); k.r(2, 4, 14, 10, C.steelD); k.r(3, 5, 12, 8, alarm ? '#3a0e14' : '#0b1a2a');
+  k.r(0, 7, 1, 4, C.steelD); k.r(17, 7, 1, 4, C.steelD); k.r(3, 15, 12, 1, C.steelD);
+  const c = alarm ? C.sr : e === 'happy' ? C.ba : C.cu;
+  const blink = (t % 3.3) < .13;
+  const eye = (x) => {
+    if (blink){ k.r(x, 8, 2, 1, c); return; }
+    if (e === 'happy'){ k.p(x, 8, c); k.p(x + 1, 7, c); k.p(x + 2, 8, c); return; }
+    if (e === 'worried'){ k.r(x, 7, 2, 2, c); k.p(x === 5 ? x + 1 : x - 1 + 1, 6, c); return; }
+    if (e === 'alarm'){ k.r(x, 6, 2, 3, c); return; }
+    k.r(x, 7, 2, 2, c);
+  };
+  if (e === 'smug' && !blink){ k.r(5, 8, 2, 1, c); k.r(11, 7, 2, 2, c); } else { eye(5); eye(11); }
+  const talking = t < molly.talkUntil && Math.floor(t * 10) % 2;
+  if (talking){ k.r(7, 10, 4, 2, c); }
+  else if (e === 'happy'){ k.p(6, 10, c); k.r(7, 11, 4, 1, c); k.p(11, 10, c); }
+  else if (e === 'worried'){ k.p(6, 11, c); k.p(7, 10, c); k.p(8, 11, c); k.p(9, 10, c); k.p(10, 11, c); k.p(11, 10, c); }
+  else if (e === 'smug'){ k.r(8, 11, 3, 1, c); k.p(11, 10, c); }
+  else if (alarm){ k.r(8, 10, 2, 2, c); }
+  else k.r(7, 11, 4, 1, c);
+}
+function drawShip(ctx, t, lit){
+  const k = K(ctx); ctx.clearRect(0, 0, 48, 64);
+  k.r(20, 2, 8, 2, C.steel); k.r(18, 4, 12, 3, C.steel); k.r(16, 7, 16, 3, C.steel);
+  k.r(14, 10, 20, 40, C.steelD); k.r(15, 10, 18, 40, '#3a4466');
+  for (let y = 0; y < 6; y++) for (let x = 0; x < 3; x++){ const on = (y * 3 + x) / 18 < lit || (lit === 0 && (y + x + Math.floor(t * 2)) % 5 === 0); k.r(17 + x * 5, 13 + y * 6, 3, 3, on ? C.na : C.dark); }
+  k.r(2, 20, 11, 16, C.blue); k.r(35, 20, 11, 16, C.blue); for (let i = 0; i < 4; i++){ k.r(2, 23 + i * 4, 11, 1, '#0a3a5a'); k.r(35, 23 + i * 4, 11, 1, '#0a3a5a'); }
+  k.r(12, 27, 2, 2, C.steel); k.r(34, 27, 2, 2, C.steel);
+  k.r(16, 50, 6, 4, C.steel); k.r(26, 50, 6, 4, C.steel);
+  if (lit > .9 || t % 1 < .5){ const L = 4 + Math.floor(Math.random() * 5); for (let i = 0; i < L; i++){ const c = i < 2 ? C.white : i < 4 ? C.na : C.orange; k.r(17 + (i > 3 ? 1 : 0), 54 + i, 4 - (i > 3 ? 2 : 0), 1, c); k.r(27 + (i > 3 ? 1 : 0), 54 + i, 4 - (i > 3 ? 2 : 0), 1, c); } }
+  k.r(22, 1, 1, 1, Math.floor(t * 2) % 2 ? C.sr : C.srD);
+}
+function drawTail(ctx, t, on){
+  const k = K(ctx); ctx.clearRect(0, 0, 80, 16);
+  [20, 52].forEach(x => {
+    for (let i = 0; i < 5; i++) k.r(x - 2 - i, i, 12 + 2 * i, 1, C.steel);
+    if (on){ const L = 6 + Math.floor(Math.random() * 5); for (let i = 0; i < L; i++){ const w = Math.max(2, 10 - i); k.r(x + 4 - w / 2, 5 + i, w, 1, i < 2 ? C.white : i < 5 ? C.na : C.orange); } }
+  });
+}
+function drawMedal(ctx, col, lockd){
+  const k = K(ctx); ctx.clearRect(0, 0, 12, 14);
+  const c = lockd ? '#3a4466' : col;
+  k.r(2, 0, 3, 5, lockd ? '#262b44' : C.sr); k.r(7, 0, 3, 5, lockd ? '#262b44' : C.blue);
+  k.circ(6, 8, 4, lockd ? '#262b44' : C.brownD); k.circ(6, 8, 3, c);
+  if (!lockd){ k.p(6, 6, C.white); k.r(5, 7, 3, 1, C.white); k.p(6, 8, C.white); k.p(5, 9, C.white); k.p(7, 9, C.white); }
+}
+function drawRankIco(ctx, idx){
+  const k = K(ctx); ctx.clearRect(0, 0, 9, 9);
+  k.r(0, 0, 9, 9, '#3a4466'); k.r(1, 1, 7, 7, C.dark);
+  for (let i = 0; i < Math.min(idx + 1, 3); i++){ const y = 6 - i * 2; k.p(2, y - 1, C.na); k.p(3, y, C.na); k.p(4, y + 1 > 7 ? 7 : y, C.na); k.p(5, y, C.na); k.p(6, y - 1, C.na); }
+  if (idx >= 3) k.r(1, 1, 7, 1, idx >= 5 ? C.cu : C.na);
+}
+
+/* ========================================================================
+   BACKGROUND STARFIELD, FX PARTICLES, MAIN LOOP
+   ======================================================================== */
+const stars = {
+  c:document.getElementById('stars'), s:[], warp:0,
+  resize(){ const c = this.c; c.width = Math.ceil(innerWidth / 3); c.height = Math.ceil(innerHeight / 3); this.s = Array.from({length:90}, () => ({x:Math.random() * c.width, y:Math.random() * c.height, z:1 + Math.floor(Math.random() * 3)})); },
+  draw(){
+    const c = this.c, x = c.getContext('2d'), k = K(x);
+    x.fillStyle = '#0b0d1a'; x.fillRect(0, 0, c.width, c.height);
+    k.circ(Math.round(c.width * .82), Math.round(c.height * .2), 9, '#1b1f38'); k.r(Math.round(c.width * .82) - 14, Math.round(c.height * .2), 29, 1, '#262b44');
+    for (const s of this.s){
+      s.y += s.z * .12 * (1 + this.warp * 30); if (s.y > c.height){ s.y = 0; s.x = Math.random() * c.width; }
+      x.fillStyle = s.z === 3 ? '#eef0f8' : s.z === 2 ? '#9aa3c2' : '#3a4466';
+      x.fillRect(Math.round(s.x), Math.round(s.y), 1, this.warp ? 1 + Math.round(this.warp * s.z * 8) : 1);
+    }
+  }
+};
+const fx = {
+  c:document.getElementById('fx'), p:[],
+  resize(){ this.c.width = innerWidth; this.c.height = innerHeight; },
+  burst(x, y, n, cols, spd = 5){ if (reduced()) return; for (let i = 0; i < n; i++){ const a = Math.random() * 6.283, v = Math.random() * spd + 1; this.p.push({x, y, vx:Math.cos(a) * v, vy:Math.sin(a) * v - 2, life:18 + Math.random() * 14, c:cols[i % cols.length], s:pick([4, 4, 6])}); } },
+  fly(x, y, tx, ty, n, col){ if (reduced()) return; for (let i = 0; i < n; i++) this.p.push({x:x + Math.random() * 40 - 20, y:y + Math.random() * 20 - 10, tx, ty, life:60, c:col, s:6, d:i * 2}); },
+  draw(){
+    const x = this.c.getContext('2d'); x.clearRect(0, 0, this.c.width, this.c.height);
+    this.p = this.p.filter(p => p.life > 0);
+    for (const p of this.p){
+      if (p.d > 0){ p.d--; continue; }
+      if (p.tx != null){ p.x += (p.tx - p.x) * .2; p.y += (p.ty - p.y) * .2; if (Math.abs(p.tx - p.x) + Math.abs(p.ty - p.y) < 8) p.life = 0; }
+      else { p.x += p.vx; p.y += p.vy; p.vy += .35; }
+      p.life--; x.fillStyle = p.c; x.fillRect(Math.round(p.x / 2) * 2, Math.round(p.y / 2) * 2, p.s, p.s);
+    }
+  }
+};
+const anims = new Set();
+let lastF = 0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  if (ts - lastF < 33) return; lastF = ts;
+  const t = ts / 1000;
+  stars.draw();
+  anims.forEach(a => { if (!a.el.isConnected){ anims.delete(a); return; } a.draw(t); });
+  fx.draw();
+}
+addEventListener('resize', () => { stars.resize(); fx.resize(); fitScenes(); });
+
+/* ========================================================================
+   UI HELPERS
+   ======================================================================== */
+const view = document.getElementById('view');
+let sayTimer = null;
+function show(html){
+  clearInterval(sayTimer); stopTimer();
+  view.innerHTML = html; window.scrollTo(0, 0); mount(); hud();
+}
+function mount(){
+  view.querySelectorAll('canvas[data-room]').forEach(c => {
+    const o = c._o = { lit:+(c.dataset.lit || 0), alarm:c.dataset.alarm === '1', charge:c.dataset.charge != null ? +c.dataset.charge : null };
+    const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawRoom(ctx, c.dataset.room, t, o)});
+  });
+  view.querySelectorAll('canvas[data-molly]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawMolly(ctx, t)}); });
+  view.querySelectorAll('canvas[data-art="ship"]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawShip(ctx, t, +c.dataset.lit)}); });
+  view.querySelectorAll('canvas[data-art="tail"]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawTail(ctx, t, c.dataset.on === '1')}); });
+  view.querySelectorAll('canvas[data-medal]').forEach(c => drawMedal(c.getContext('2d'), c.dataset.medal, c.dataset.lock === '1'));
+  fitScenes();
+}
+function fitScenes(){
+  view.querySelectorAll('.scene canvas').forEach(c => {
+    const box = c.parentElement.clientWidth - 8; const s = Math.max(1, Math.floor(Math.min(box, 600) / 80));
+    c.style.width = (80 * s) + 'px'; c.style.height = (40 * s) + 'px';
+  });
+}
+const mainScene = () => { const c = view.querySelector('.scene canvas[data-room]'); return c ? c._o : null; };
+function sceneRect(){ const c = view.querySelector('.scene canvas'); return c ? c.getBoundingClientRect() : {left:innerWidth / 2, top:120, width:0, height:0}; }
+function shake(){ if (reduced()) return; const a = document.getElementById('app'); a.classList.remove('shake'); void a.offsetWidth; a.classList.add('shake'); }
+function flash(col){ const f = document.getElementById('flash'); f.className = ''; void f.offsetWidth; f.className = col + ' on'; }
+function toast(title, text, medal){
+  const d = document.createElement('div'); d.className = 'toast';
+  d.innerHTML = `${medal ? `<canvas class="pix" width="12" height="14"></canvas>` : ''}<div><b>${title}</b><span>${F(text)}</span></div>`;
+  document.getElementById('toasts').appendChild(d);
+  if (medal) drawMedal(d.querySelector('canvas').getContext('2d'), medal, false);
+  setTimeout(() => d.remove(), 3100);
+}
+function say(text, expr = 'neutral'){
+  const el = document.getElementById('say'); if (!el) return;
+  molly.expr = expr; clearInterval(sayTimer);
+  el.innerHTML = `<span class="who">MOLLY</span>${F(text)}`;
+  if (reduced()) return;
+  const nodes = []; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n; w.nextNode();
+  while ((n = w.nextNode())){ nodes.push([n, n.nodeValue]); n.nodeValue = ''; }
+  let i = 0, j = 0; molly.talkUntil = 1e12;
+  const finish = () => { clearInterval(sayTimer); nodes.forEach(([nd, tx]) => { nd.nodeValue = tx; }); molly.talkUntil = 0; };
+  sayTimer = setInterval(() => {
+    for (let s = 0; s < 2; s++){
+      if (i >= nodes.length){ finish(); return; }
+      const [nd, tx] = nodes[i]; nd.nodeValue = tx.slice(0, ++j); if (j >= tx.length){ i++; j = 0; }
+    }
+    if (Math.random() < .35) SND.play('type');
+  }, 26);
+  el.onclick = finish;
+}
+const talkHTML = () => `<div class="talk"><canvas data-molly class="pix" width="18" height="16" aria-hidden="true"></canvas><div class="say" id="say" aria-live="polite"></div></div>`;
+const ruleCard = tp => `<div class="rule"><span class="lab">Manual · ${F(TOPICS[tp].name)}</span>${TOPICS[tp].rule.startsWith('<') ? F(TOPICS[tp].rule) : `<p>${F(TOPICS[tp].rule)}</p>`}</div>`;
 const unlocked = i => i === 0 || st.done.includes(MODS[i - 1].id);
 
-/* ---------- Screens ---------- */
+const RANKS = [[0, 'Cadet'], [60, 'Ensign'], [150, 'Lab Tech'], [260, 'Chemist'], [380, 'Sr. Chemist'], [500, 'Chief Chemist']];
+const rankIdx = xp => RANKS.reduce((a, r, i) => xp >= r[0] ? i : a, 0);
+const BADGES = [
+  {id:'first', name:'First Fix', d:'Get your first repair right.', c:C.ba},
+  {id:'s3', name:'Warming Up', d:'3 correct in a row.', c:C.na},
+  {id:'s5', name:'Chain Reaction', d:'5 correct in a row.', c:C.orange},
+  {id:'s10', name:'Critical Mass', d:'10 correct in a row.', c:C.sr},
+  {id:'sniper', name:'Sig Fig Sniper', d:'5 calculations in a row with perfect value, sig figs, notation, and units.', c:C.cu},
+  {id:'flawless', name:'Flawless System', d:'Restore a system with every repair right on the first try.', c:C.blue},
+  {id:'nohint', name:'Unassisted', d:'Restore a system without buying a hint.', c:C.pink},
+  {id:'comeback', name:'Comeback', d:'Fix a rerouted problem after missing it.', c:C.pale},
+  {id:'jump', name:'Jump Complete', d:'Escape the station.', c:C.yel},
+  {id:'iron', name:'Iron Hull', d:'Escape without an emergency patch.', c:C.steel}
+];
+function award(ids){
+  let k = 0;
+  ids.forEach(id => {
+    if (st.badges.includes(id)) return; st.badges.push(id);
+    const b = BADGES.find(x => x.id === id);
+    setTimeout(() => { toast('Badge: ' + b.name, b.d, b.c); SND.play('badge'); }, 500 + k++ * 900);
+  });
+}
+function hud(){
+  const h = Math.max(0, st.hull), on = Math.ceil(h / 10);
+  const segs = document.getElementById('segs');
+  segs.innerHTML = Array.from({length:10}, (_, i) => `<i class="seg ${i < on ? 'on' : ''}"></i>`).join('');
+  segs.classList.toggle('low', h < 35);
+  document.getElementById('enev').textContent = st.energy;
+  const cb = document.getElementById('combo'); cb.hidden = st.streak < 2; cb.textContent = 'x' + st.streak;
+  const ri = rankIdx(st.xp); document.getElementById('rankname').textContent = RANKS[ri][1];
+  drawRankIco(document.getElementById('rankico').getContext('2d'), ri);
+  const m = document.getElementById('mute'); m.classList.toggle('off', !st.sound); m.setAttribute('aria-label', st.sound ? 'Sound on' : 'Sound off');
+}
+
+/* ========================================================================
+   SCREENS
+   ======================================================================== */
+const hasRun = () => st.done.length > 0 || !!st.cur;
 function renderTitle(){
-  const has = st.done.length > 0 || !!st.cur;
+  const has = hasRun();
   show(`<section class="title">
-    <div class="logo" aria-hidden="true"><span class="lz">${F('6.022×10^23')}</span><span class="ls">Av</span><span class="ln">Avogadro Station</span></div>
-    <h1 class="disp">Avogadro Station</h1>
-    <p class="lede">Your chem quiz study guide, rebuilt as a rescue mission. Ten station systems are down. Every repair is a problem from the guide, and the calculations are worked on paper, the way the quiz will be.</p>
-    <ul class="kit"><li><b>Paper and pencil</b> for every calculation</li><li><b>A calculator</b></li><li><b>About 45 minutes</b> for a full run</li></ul>
+    <canvas data-art="ship" data-lit="${st.done.length / MODS.length}" class="pix shipart" width="48" height="64" aria-hidden="true"></canvas>
+    <h1 class="logo"><span class="l1">AVOGADRO</span><span class="l2">STATION</span></h1>
+    <p class="tag">A chemistry rescue mission</p>
     <div class="stack">
-      ${has ? `<button class="btn primary" data-act="continue">Continue run</button>` : `<button class="btn primary" data-act="new">Begin</button>`}
-      ${has ? `<button class="btn" data-act="new">${ui.confirm === 'new' ? 'Tap again to erase progress' : 'Start over'}</button>` : ''}
-      <button class="btn" data-act="remix">${ui.confirm === 'remix' ? (has ? 'Tap again: erase progress and remix' : 'Tap again to start a remix run') : 'Remix run: same topics, new numbers'}</button>
+      ${has ? `<button class="pb go big" data-act="continue">▶ Continue</button>` : `<button class="pb go big blink" data-act="new">▶ Press start</button>`}
+      ${has ? `<button class="pb" data-act="new">${ui.confirm === 'new' ? 'Tap again to erase' : 'New game'}</button>` : ''}
+      <button class="pb" data-act="remix">${ui.confirm === 'remix' ? 'Tap again to remix' : 'Remix: new numbers'}</button>
     </div>
+    <ul class="kit"><li>Paper + pencil</li><li>Calculator</li><li>~45 min</li></ul>
   </section>`);
+}
+function dialog(lines, after){
+  ui.dlg = { lines, i:0, after };
+  dlgStep();
+}
+function dlgStep(){
+  const d = ui.dlg, el = document.getElementById('dlgbtns'); if (!d || !el) return;
+  const last = d.i >= d.lines.length - 1;
+  say(d.lines[d.i], d.exprs ? d.exprs[d.i] : 'neutral');
+  el.innerHTML = last ? d.after : `<button class="pb cy" data-act="dlg-next">Next ▶</button>`;
 }
 function renderBoot(){
-  show(`<section class="task">
-    <h1 class="disp" style="font-size:2.4rem;text-transform:uppercase">Reboot sequence</h1>
-    ${molly(['Good, you\'re awake. I\'m MOLLY, the station\'s Molecular Logistics Layer.', 'A meteor scrambled my calculation core. I can still read the sensors, but every number I produce needs checking by someone with a pencil. That\'s you.', 'The rules: long calculations are worked by hand. You give me the final answer in scientific notation, with correct sig figs and units. I grade the way your teacher does.', 'Get one wrong and it costs hull, and I\'ll hand you the same kind of problem again with new numbers. Hints cost energy.', 'Ten systems are down. Fix them in order and we go home.'])}
-    <button class="btn primary" data-act="map">Open station map</button>
+  show(`<section class="scr">
+    <div class="scene"><canvas data-room="med" data-lit="0" data-alarm="1" class="pix" width="80" height="40" aria-hidden="true"></canvas><span class="stag">REBOOTING…</span></div>
+    ${talkHTML()}
+    <div id="dlgbtns"></div>
   </section>`);
+  SND.play('alarm');
+  dialog(['Oh good, you\'re awake. I\'m MOLLY, the station\'s Molecular Logistics Layer.',
+    'A meteor scrambled my calculation core. I can still read sensors, but every number I produce needs checking by someone with a pencil. That\'s you.',
+    'Long calculations are worked by hand, on paper. You punch the final answer into each device in scientific notation, with correct sig figs and units. I grade like your teacher.',
+    'Wrong answers cost hull, and I\'ll hand you the same kind of problem again with new numbers. Streaks earn bonus energy. Hints cost energy.',
+    'Ten systems are down. Fix them in order, then we jump home from the bridge.'],
+    `<button class="pb go big" data-act="map">Open station map ▶</button>`);
+  ui.dlg.exprs = ['happy', 'worried', 'neutral', 'smug', 'neutral'];
+  dlgStep();
 }
+const LAYOUT = [['fin'], ['med', 'air'], ['fab', 'rx'], ['sen', 'h2o'], ['pow', 'crg'], ['eng']];
 function renderMap(){
   const n = st.done.length;
-  const tiles = MODS.map((m, i) => {
-    const on = st.done.includes(m.id), un = unlocked(i), cls = on ? 'online' : un ? 'next' : 'locked';
-    const tp = m.final ? 'Everything, new numbers' : m.topics.map(t => TOPICS[t].name).join(' · ');
-    const stt = on ? 'Online' : un ? (st.cur && st.cur.m === i ? 'Repair in progress' : 'Needs repair') : 'Locked';
-    return `<button class="tile ${cls}" data-act="mod" data-i="${i}" ${un ? '' : 'aria-disabled="true"'}>
-      <span class="z">${i + 1}</span><span class="sym">${m.code}</span><span class="nm">${m.name}</span><span class="tp">${F(tp)}</span><span class="stt">${stt}</span></button>`;
-  }).join('');
-  show(`<section>
-    <div class="maphead"><h1 class="disp">Station map</h1><span class="scoreline">${n} of ${MODS.length} online${st.remix ? ' · remix run' : ''}</span></div>
-    <div class="grid">${tiles}</div>
-    <div class="row" style="margin-top:16px"><button class="btn small" data-act="report">Study report</button><button class="btn small ghost" data-act="title">Title screen</button></div>
+  const cell = id => {
+    const i = MODS.findIndex(m => m.id === id), m = MODS[i], on = st.done.includes(id), un = unlocked(i);
+    const cls = on ? 'st-online' : un ? 'st-next' : 'st-locked';
+    const lit = on ? 1 : un ? .3 : 0;
+    const stt = on ? 'online' : un ? (st.cur && st.cur.m === i ? 'in repair' : 'broken') : 'sealed';
+    return `<button class="room ${cls} ${m.final || id === 'eng' ? 'span' : ''}" data-act="mod" data-i="${i}" aria-label="${m.name}: ${stt}">
+      <canvas data-room="${id}" data-lit="${lit}" ${m.final && !on ? 'data-alarm="1"' : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>
+      <span class="rlab"><i class="led"></i>${i + 1}. ${m.name} · ${stt}</span></button>`;
+  };
+  show(`<section class="scr">
+    <div class="maptop"><h1 class="h1">Station map</h1><span class="lab">${n}/${MODS.length} online${st.remix ? ' · remix' : ''}</span></div>
+    ${talkHTML()}
+    <div class="ship">
+      <div class="nose"></div>
+      <div class="hullbox"><div class="trunk"><i style="height:${Math.round(100 * n / MODS.length)}%"></i></div>
+        <div class="rooms">${LAYOUT.flat().map(cell).join('')}</div></div>
+      <div class="tail"><canvas data-art="tail" data-on="${st.done.includes('eng') ? 1 : 0}" class="pix" width="80" height="16" aria-hidden="true"></canvas></div>
+    </div>
+    <div class="row"><button class="pb sm" data-act="badges">Badges ${st.badges.length}/${BADGES.length}</button><button class="pb sm" data-act="report">Study report</button><button class="pb sm" data-act="title">Title</button></div>
   </section>`);
+  const next = MODS.findIndex((m, i) => unlocked(i) && !st.done.includes(m.id));
+  if (next < 0) say('Every system is online. Replay any room to practice.', 'happy');
+  else if (st.cur) say(`${MODS[st.cur.m].name} is mid-repair. Tap it to pick up where you left off.`, 'neutral');
+  else say(next === 0 ? 'Start with the med bay. It\'s the flashing one.' : `Next up: the ${MODS[next].name}. Tap it.`, next === MODS.length - 1 ? 'worried' : 'neutral');
 }
+function enterRoom(i, el){
+  SND.play('zip');
+  if (el && !reduced()){ el.classList.add('zoom'); setTimeout(() => startModule(i), 300); }
+  else startModule(i);
+}
+const sceneHTML = (id, lit, extra = '', alarm = false, charge = null) =>
+  `<div class="scene"><canvas data-room="${id}" data-lit="${lit}" ${alarm ? 'data-alarm="1"' : ''} ${charge != null ? `data-charge="${charge}"` : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>${extra}</div>`;
 function startModule(i){
   const m = MODS[i];
   if (st.cur && st.cur.m === i){ renderTask(); return; }
-  let queue;
-  if (m.final) queue = buildFinal();
-  else queue = m.tasks.map(t => st.remix ? variantOf(t, false) : JSON.parse(JSON.stringify(t)));
-  st.cur = { m:i, queue, pos:0, first:0, rer:0 };
+  const queue = m.final ? buildFinal() : m.tasks.map(t => st.remix ? variantOf(t, false) : JSON.parse(JSON.stringify(t)));
+  st.cur = { m:i, queue, pos:0, first:0, rer:0, ok:0, hints:0 };
   save();
-  const rules = m.topics.map(ruleCard).join('');
-  show(`<section class="task">
-    <div class="meta"><span class="chip">System ${i + 1} · ${m.code}</span></div>
-    <h1 class="disp" style="font-size:2.6rem;text-transform:uppercase">${m.name}</h1>
-    ${molly(m.intro)}
-    ${rules}
-    <p class="dim" style="margin:0">${queue.length} repairs. ${m.final ? 'No rule cards on this one.' : 'The rule cards are also available as hints during the repairs.'}</p>
-    <button class="btn primary" data-act="begin">Begin repairs</button>
+  show(`<section class="scr">
+    ${sceneHTML(m.id, st.done.includes(m.id) ? 1 : .15, `<span class="stag">SYSTEM ${i + 1} · ${m.name.toUpperCase()}</span>`, m.final)}
+    <h1 class="h1">${m.name}</h1>
+    ${talkHTML()}
+    <div id="dlgbtns"></div>
+    ${m.final ? `<div class="win dev"><div class="devh"><span>Exam timer</span><span>${st.timer ? 'ON' : 'OFF'}</span></div>
+      <p class="dim" style="margin:0;font-size:16px">Quiz pressure: 3:00 per calculation, 0:45 for everything else. Running out of time counts as a miss.</p>
+      <button class="pb ${st.timer ? 'go' : ''}" data-act="timer">${st.timer ? 'Timer on · tap to turn off' : 'Timer off · tap to turn on'}</button></div>` : m.topics.map(ruleCard).join('')}
+    <button class="pb go big" data-act="begin">${m.final ? 'Start the jump ▶' : 'Start repairs ▶'} (${queue.length})</button>
   </section>`);
+  if (m.final) SND.play('alarm');
+  ui.dlg = { lines:m.intro, i:0, after:'', exprs:m.intro.map((_, j) => m.final ? 'alarm' : j === 0 ? 'neutral' : 'neutral') };
+  dlgStep();
 }
 function buildFinal(){
   const order = ['conv','amu','mm','bal','atoms','cls','net','redox','name','stoich'];
@@ -780,166 +1316,220 @@ function buildFinal(){
   return q;
 }
 
-/* ---------- Task rendering ---------- */
+/* ========================================================================
+   TASK SCREEN
+   ======================================================================== */
 const curTask = () => st.cur.queue[st.cur.pos];
+const DEVNAME = { med:'IV pump · dose input', air:'Scrubber console', fab:'Fabricator · print job', rx:'Reactor controls', sen:'Radar', h2o:'Tank controls', pow:'Battery bank', crg:'Label maker', eng:'Fuel console', fin:'Jump computer' };
+const VERB = { med:'Start pump', air:'Calibrate', fab:'Print', rx:'Engage core', h2o:'Flush tank', pow:'Transfer e⁻', crg:'Stamp label', eng:'Fire thrusters', fin:'Charge drive' };
 function renderTask(){
   const c = st.cur, t = curTask(), m = MODS[c.m];
-  ui = { t, neg:false, unit:null, done:false, hints:{} };
+  ui = { t, done:false, hints:{}, confirm:null };
+  ui.room = m.id;
   if (t.type === 'calc'){
     ui.b = CALC[t.gen].build(t.p);
     ui.phase = t.gen === 'hydrate' ? 'select' : t.gen === 'limit' ? 'balance' : 'answer';
     ui.sel = []; ui.flags = {};
     if (t.gen === 'limit'){ const L = LIM[t.p.r]; ui.coefs = L.L.concat(L.R).map(() => 1); }
   }
+  if (t.type === 'calc' || t.type === 'numunit') ui.kp = { m:'', e:'', neg:false, f:'m', unit:null };
   if (t.type === 'balance') ui.coefs = t.L.concat(t.R).map(() => 1);
-  if (t.type === 'net') ui.net = { L: t.L.map(x => ({...x, split:false})), R: t.R.map(x => ({...x, split:false})), struck:{}, solidTap:false };
+  if (t.type === 'nums') ui.nv = [0, 0];
+  if (t.type === 'net') ui.net = { L:t.L.map(x => ({...x, split:false})), R:t.R.map(x => ({...x, split:false})), struck:{}, solidTap:false };
   if (t.type === 'redox') ui.rx = { ox:null, red:null, prodTap:false };
-  const chips = [`<span class="chip">${m.name} · ${c.pos + 1} of ${c.queue.length}</span>`];
-  if (t.n) chips.push(`<span class="chip">Study guide #${t.n}</span>`);
-  if (t.reroute) chips.push(`<span class="chip re">Rerouted</span>`);
-  else if (!t.n) chips.push(`<span class="chip">New numbers</span>`);
-  show(`<section class="task">
-    <div class="meta">${chips.join('')}</div>
-    ${t.story ? `<p class="story">${F(t.story)}</p>` : ''}
+  const chips = [];
+  if (t.n) chips.push(`<span class="chip">Guide #${t.n}</span>`);
+  if (t.reroute) chips.push(`<span class="chip re">Rerouted</span>`); else if (!t.n) chips.push(`<span class="chip">New numbers</span>`);
+  const lit = m.final ? .6 : st.done.includes(m.id) ? 1 : Math.min(.85, .15 + .7 * c.pos / c.queue.length);
+  const charge = m.final ? (c.ok || 0) / c.queue.length : null;
+  const extra = `<span class="stag">${m.name.toUpperCase()} · ${c.pos + 1}/${c.queue.length}</span><div class="schips">${chips.join('')}</div>` +
+    (m.final ? `<div class="charge"><span class="lab">Jump drive</span><div class="cbar"><i style="width:${Math.round(100 * charge)}%"></i></div>${st.timer ? '<span class="timer" id="timer">--:--</span>' : ''}</div>` : '');
+  show(`<section class="scr">
+    ${sceneHTML(m.id, lit, extra, m.final, charge)}
+    ${talkHTML()}
+    <div class="crt"><span class="lab">${t.type === 'calc' ? 'Incoming problem · paper required' : 'Incoming problem'}</span><div id="qtext"></div></div>
     <div id="body"></div>
     <div class="hints" id="hints"></div>
     <div class="hintbox" id="hintbox"></div>
     <div id="fb"></div>
   </section>`);
+  document.getElementById('qtext').innerHTML = questionHTML();
   drawBody(); drawHints();
+  say(t.story || pick(FRESH), t.reroute ? 'smug' : m.final ? 'alarm' : 'neutral');
+  if (m.final && st.timer) startTimer(t.type === 'calc' ? 180 : 45);
+}
+function questionHTML(){
+  const t = ui.t;
+  switch (t.type){
+    case 'calc': return `<p>${F(ui.b.q)}</p>`;
+    case 'balance': return `<p>${F(t.L.join(' + ') + ' → ' + t.R.join(' + '))}. What is the coefficient of ${F(t.ask)}?</p>`;
+    case 'classify': return `<p>Classify this reaction.</p>`;
+    case 'net': return `<p>Write the net ionic equation and name the spectator ions for:</p><p style="margin-top:8px">${F(t.L.map(x => (x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')').join(' + ') + ' → ' + t.R.map(x => (x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')').join(' + '))}</p>`;
+    case 'redox': return `<p>${F(t.L.join(' + ') + ' → ' + t.R.join(' + '))}</p><p style="margin-top:8px">Which reactant is oxidized and loses electrons? Which is reduced and gains electrons?</p>`;
+    default: return `<p>${F(t.q)}</p>`;
+  }
 }
 function drawHints(){
   const t = ui.t, el = document.getElementById('hints'); if (!el) return;
-  if (ui.done){ el.innerHTML = ''; return; }
-  const b = [];
-  if (!ui.hints.rule) b.push(`<button class="btn small" data-act="hint" data-h="rule" ${st.energy < 5 ? 'disabled' : ''}>Rule card · 5 energy</button>`);
-  if (t.type === 'calc' && !ui.hints.setup) b.push(`<button class="btn small" data-act="hint" data-h="setup" ${st.energy < 10 ? 'disabled' : ''}>Show setup · 10 energy</button>`);
-  b.push(`<button class="btn small ghost" data-act="sheet">Data sheet</button>`);
-  el.innerHTML = b.join('');
-  const hb = document.getElementById('hintbox'); const parts = [];
+  if (ui.done){ el.innerHTML = ''; }
+  else {
+    const b = [];
+    if (!ui.hints.rule) b.push(`<button class="pb sm" data-act="hint" data-h="rule" ${st.energy < 5 ? 'disabled' : ''}>Manual · 5 nrg</button>`);
+    if (t.type === 'calc' && !ui.hints.setup) b.push(`<button class="pb sm" data-act="hint" data-h="setup" ${st.energy < 10 ? 'disabled' : ''}>Setup · 10 nrg</button>`);
+    b.push(`<button class="pb sm" data-act="sheet">Data sheet</button>`);
+    el.innerHTML = b.join('');
+  }
+  const parts = [];
   if (ui.hints.rule) parts.push(ruleCard(t.topic));
-  if (ui.hints.setup) parts.push(`<div class="rule"><span class="rl">Setup</span><p>${F(ui.b.setup)}</p></div>`);
-  hb.innerHTML = parts.join('');
+  if (ui.hints.setup) parts.push(`<div class="rule"><span class="lab">Setup</span><p>${F(ui.b.setup)}</p></div>`);
+  document.getElementById('hintbox').innerHTML = parts.join('');
 }
 function drawBody(){
-  const t = ui.t, body = document.getElementById('body'); let h = '';
+  const t = ui.t, body = document.getElementById('body'); if (!body) return;
   const dis = ui.done ? 'disabled' : '';
+  const verb = VERB[ui.room] || 'Engage';
+  let h = '';
   switch (t.type){
-    case 'calc': h = calcBody(); break;
+    case 'calc': h = calcBody(verb); break;
     case 'numunit':
-      h = `<p class="q">${F(t.q)}</p><div class="ans">
-        <div><label class="dim" for="nv" style="font-size:.8rem">Value</label><br><input id="nv" class="inp" inputmode="decimal" autocomplete="off" ${dis}></div>
-        <div class="units">${['g','amu'].map(u => `<button class="tog" data-act="unit" data-u="${u}" aria-pressed="${ui.unit === u}" ${dis}>${u}</button>`).join('')}</div>
+      h = `<div class="win dev"><div class="devh"><span>Gas analyzer</span><span>Set mode · enter mass</span></div>
+        <div class="lever">
+          <button class="lv" data-act="unit" data-u="amu" aria-pressed="${ui.kp.unit === 'amu'}" ${dis}>1 particle<b>amu</b></button>
+          <button class="lv" data-act="unit" data-u="g" aria-pressed="${ui.kp.unit === 'g'}" ${dis}>1 mole<b>g</b></button>
+        </div>
+        ${lcdHTML(false)}${keysHTML(false)}
         <p class="err" id="err"></p>
-        ${ui.done ? '' : `<button class="btn primary" data-act="submit">Submit answer</button>`}</div>`; break;
+        ${ui.done ? '' : `<button class="pb go big" data-act="submit">${verb} ▶</button>`}</div>`; break;
     case 'balance':
-      h = `<p class="q">${F(t.L.join(' + ') + ' → ' + t.R.join(' + '))}. What is the coefficient of ${F(t.ask)}?</p>
-        <p class="dim" style="margin:0">Balance the whole equation first, using the lowest whole numbers.</p>
-        <div id="balbox">${balanceHTML(t.L, t.R, ui.coefs, ui.done)}</div>
-        ${ui.done ? '' : `<button class="btn primary" data-act="submit">Lock in equation</button>`}`; break;
+      h = `<div class="win dev"><div class="devh"><span>Reactor controls</span><span>Lowest whole numbers</span></div><div id="balbox">${reactorHTML(t.L, t.R, ui.coefs, ui.done)}</div>
+        ${ui.done ? '' : `<button class="pb go big" data-act="submit">Engage core ▶</button>`}</div>`; break;
     case 'tf':
-      h = `<p class="q">${F(t.q)}</p><div class="bins">${['True','False'].map((x, i) => `<button class="btn" data-act="pickc" data-v="${i}" ${dis}>${x}</button>`).join('')}</div>`; break;
+      h = `<div class="win dev"><div class="devh"><span>Safety interlock</span></div><div class="plates">
+        <button class="pb ok plate" data-act="pickc" data-v="0" ${dis}>True</button><button class="pb bad plate" data-act="pickc" data-v="1" ${dis}>False</button></div></div>`; break;
     case 'choice':
-      h = `<p class="q">${F(t.q)}</p><div class="bins">${t.opts.map((x, i) => `<button class="btn" data-act="pickc" data-v="${i}" ${dis}>${x}</button>`).join('')}</div>`; break;
+      h = `<div class="win dev"><div class="devh"><span>Cell diagnostic</span></div><div class="plates">${t.opts.map((x, i) => `<button class="pb ${i ? 'cy' : 'go'} plate" data-act="pickc" data-v="${i}" ${dis}>${x}</button>`).join('')}</div></div>`; break;
     case 'nums':
-      h = `<p class="q">${F(t.q)}</p><div class="ans"><div class="ansrow">
-        <div><label for="n0">Moles of reactants</label><input id="n0" class="inp sm" inputmode="numeric" ${dis}></div>
-        <div><label for="n1">Moles of products</label><input id="n1" class="inp sm" inputmode="numeric" ${dis}></div></div>
-        <p class="err" id="err"></p>${ui.done ? '' : `<button class="btn primary" data-act="submit">Submit answer</button>`}</div>`; break;
+      h = `<div class="win dev"><div class="devh"><span>Mole gauges</span></div><div class="gauges">
+        ${['Mol in (reactants)', 'Mol out (products)'].map((lb, i) => `<div class="gauge"><span class="lab">${lb}</span><span class="gv">${ui.nv[i]}</span>
+          <div class="row" style="justify-content:center"><button class="sbtn" data-act="nv" data-i="${i}" data-d="-1" aria-label="Decrease" ${dis}>−</button><button class="sbtn" data-act="nv" data-i="${i}" data-d="1" aria-label="Increase" ${dis}>+</button></div></div>`).join('')}
+        </div>${ui.done ? '' : `<button class="pb go big" data-act="submit">Engage ▶</button>`}</div>`; break;
     case 'classify':
-      h = `<p class="q">Classify this reaction.</p><div class="bigeq">${F(t.eq)}</div>
-        <div class="bins">${CLASSES.map(([k, n]) => `<button class="btn" data-act="pickc" data-v="${k}" ${dis}>${n}</button>`).join('')}</div>`; break;
+      h = `<div class="win dev"><div class="devh"><span>Radar · incoming signal</span><span class="blink">●</span></div>
+        <div class="scope"><div class="sweep"></div><div class="blip" id="blip">${F(t.eq)}</div></div>
+        <div class="chans">${CLASSES.map(([k, n], i) => `<button class="pb" data-act="pickc" data-v="${k}" ${dis}><small>CH${i + 1}</small>${n}</button>`).join('')}</div></div>`; break;
     case 'text':
-      h = `<p class="q">${F(t.q)}</p><div class="ans">${t.fields.map((f, i) => `<div><label class="dim" for="tx${i}" style="font-size:.8rem">${F(f.label)}</label><input id="tx${i}" class="inp wide" autocomplete="off" autocapitalize="off" spellcheck="false" ${dis}></div>`).join('')}
-        ${t.fields.some(f => f.cs) ? `<p class="dim" style="margin:0;font-size:.85rem">Type subscripts as regular numbers, for example Fe2(SO4)3.</p>` : ''}
-        <p class="err" id="err"></p>${ui.done ? '' : `<button class="btn primary" data-act="submit">Submit answer</button>`}</div>`; break;
+      h = `<div class="crate ${ui.done && ui.lastOk ? 'open' : ''}"><div class="label"><span class="lab">New label · ${t.fields.some(f => f.cs) ? 'type subscripts as plain numbers, e.g. Fe2(SO4)3' : 'old system uses -ous / -ic'}</span>
+        ${t.fields.map((f, i) => `<label class="lab" for="tx${i}" style="margin-top:6px">${F(f.label)}</label><input id="tx${i}" class="inpx" autocomplete="off" autocapitalize="off" spellcheck="false" ${dis}>`).join('')}</div>
+        <p class="err" id="err" style="color:#fff3b0"></p>
+        ${ui.done ? '' : `<button class="pb go big" data-act="submit">Stamp label ▶</button>`}</div>`; break;
     case 'net': h = netBody(); break;
     case 'redox': h = redoxBody(); break;
   }
   body.innerHTML = h;
 }
-function calcBody(){
-  const t = ui.t, b = ui.b; let h = `<p class="q">${F(b.q)}</p>`;
+function lcdHTML(sci){
+  const k = ui.kp, act = f => !ui.done && k.f === f ? 'act' : '';
+  const cur = f => !ui.done && k.f === f ? '<span class="cur"></span>' : '';
+  const m = k.m ? k.m : `<span class="ph">${sci ? '0.00' : '0.00'}</span>`;
+  const e = (k.neg ? '−' : '') + (k.e || (k.f === 'e' ? '' : '<span class="ph">0</span>'));
+  return `<div class="lcd" id="lcd" aria-live="polite"><span class="fld ${act('m')}">${m}${cur('m')}</span>${sci ? `<span>×10</span><sup class="fld ${act('e')}">${e}${cur('e')}</sup>` : ''}<span class="u">${ui.kp.unit || '---'}</span></div>`;
+}
+function keysHTML(sci){
+  const dis = ui.done ? 'disabled' : '';
+  const K1 = d => `<button class="key" data-act="key" data-k="${d}" ${dis}>${d}</button>`;
+  return `<div class="keys">
+    ${K1(7)}${K1(8)}${K1(9)}<button class="key fn" data-act="key" data-k="bk" aria-label="Backspace" ${dis}>DEL</button>
+    ${K1(4)}${K1(5)}${K1(6)}<button class="key fn ${ui.kp.f === 'e' ? 'on' : ''}" data-act="key" data-k="exp" ${sci ? dis : 'disabled'}>×10ⁿ</button>
+    ${K1(1)}${K1(2)}${K1(3)}<button class="key fn ${ui.kp.neg ? 'on' : ''}" data-act="key" data-k="neg" aria-label="Toggle exponent sign" ${sci ? dis : 'disabled'}>±ⁿ</button>
+    <button class="key w2" data-act="key" data-k="0" ${dis}>0</button><button class="key" data-act="key" data-k="." ${dis}>.</button><button class="key fn" data-act="key" data-k="clr" ${dis}>CLR</button>
+  </div>`;
+}
+function calcBody(verb){
+  const t = ui.t, b = ui.b; let h = '';
   if (t.gen === 'hydrate'){
     const locked = ui.phase !== 'select';
-    h += `<div class="ans"><span class="sub-h">Step 1 · Pick the values you need</span><div class="units">${b.chips.map(v => {
-      let cls = ''; if (locked){ cls = b.need.includes(v) ? 'good' : ui.sel.includes(v) ? 'bad' : ''; }
-      return `<button class="tog mono ${cls}" data-act="chipv" data-v="${v}" aria-pressed="${ui.sel.includes(v)}" ${locked ? 'disabled' : ''}>${v}</button>`; }).join('')}</div>
-      ${locked ? '' : `<button class="btn primary" data-act="lockchips">Lock in values</button>`}<p class="err" id="err1"></p></div>`;
+    const cols = [C.sr, C.blue, C.ba, C.na, C.pink, C.orange];
+    h += `<div class="win dev"><div class="devh"><span>Step 1 · Load cartridges</span><span>${ui.sel.length} loaded</span></div>
+      <div class="slots">${ui.sel.map(v => `<span class="cart" style="--c:${cols[b.chips.indexOf(v)]};min-width:70px;pointer-events:none">${v}</span>`).join('') || '<span class="lab" style="align-self:center">Empty. Tap the atomic masses you need.</span>'}</div>
+      <div class="units">${b.chips.map((v, i) => { let cls = ''; if (locked){ cls = b.need.includes(v) ? 'good' : ui.sel.includes(v) ? 'bad' : ''; }
+        return `<button class="cart ${cls}" style="--c:${cols[i]}" data-act="cart" data-v="${v}" aria-pressed="${ui.sel.includes(v)}" ${locked ? 'disabled' : ''}>${v}</button>`; }).join('')}</div>
+      ${locked ? '' : `<button class="pb go" data-act="lockcarts">Load &amp; check ▶</button>`}<p class="err" id="err1"></p></div>`;
   }
   if (t.gen === 'limit'){
     const L = LIM[t.p.r], locked = ui.phase !== 'balance';
-    h += `<div class="ans"><span class="sub-h">Step 1 · Balance the equation</span><div id="balbox">${balanceHTML(L.L, L.R, ui.coefs, locked)}</div>
-      ${locked ? '' : `<button class="btn primary" data-act="checkbal">Check balance</button>`}<p class="err" id="err1"></p></div>`;
+    h += `<div class="win dev"><div class="devh"><span>Step 1 · Balance the equation</span></div><div id="balbox">${reactorHTML(L.L, L.R, ui.coefs, locked)}</div>
+      ${locked ? '' : `<button class="pb go" data-act="checkbal">Check balance ▶</button>`}<p class="err" id="err1"></p></div>`;
   }
   if (ui.phase === 'answer'){
-    const dis = ui.done ? 'disabled' : '';
-    h += `<div class="paper"><span class="lbl">Paper</span><span>Work this one out by hand. Write every step with units. Round only at the end.</span></div>
-    <div class="ans">
-      ${t.gen === 'hydrate' || t.gen === 'limit' ? '<span class="sub-h">Step 2 · Your final answer</span>' : '<span class="sub-h">Your final answer</span>'}
-      <div class="ansrow">
-        <div><label for="man">Number</label><input id="man" class="inp" inputmode="decimal" autocomplete="off" placeholder="1.23" ${dis}></div>
-        <span class="x10">× 10</span>
-        <div><label for="exp">Exponent</label><div class="expw"><button class="sgn" data-act="sgn" aria-label="Toggle exponent sign" ${dis}>${ui.neg ? '−' : '+'}</button><input id="exp" class="inp sm" inputmode="numeric" autocomplete="off" placeholder="0" ${dis}></div></div>
-      </div>
-      <div><span class="sub-h" style="display:block;margin-bottom:6px">Units</span><div class="units">${UNITS.map(u => `<button class="tog" data-act="unit" data-u="${u}" aria-pressed="${ui.unit === u}" ${dis}>${u}</button>`).join('')}</div></div>
+    h += `<div class="win dev">
+      <div class="devh"><span>${DEVNAME[ui.room] || 'Console'}</span><span>${t.gen === 'hydrate' || t.gen === 'limit' ? 'Step 2' : 'Final answer'}</span></div>
+      <div class="paper"><b>PAPER</b><span>Work it by hand with units on every step. Round only at the end. Then enter your final answer.</span></div>
+      ${lcdHTML(true)}
+      <div class="units">${UNITS.map(u => `<button class="sw" data-act="unit" data-u="${u}" aria-pressed="${ui.kp.unit === u}" ${ui.done ? 'disabled' : ''}>${u}</button>`).join('')}</div>
+      ${keysHTML(true)}
       <p class="err" id="err"></p>
-      ${ui.done ? '' : `<button class="btn primary" data-act="submit">Submit answer</button>`}
+      ${ui.done ? '' : `<button class="pb go big" data-act="submit">${verb} ▶</button>`}
     </div>`;
   }
   return h;
 }
-function ionTile(side, i, j, ion, n){
-  const key = side + i + '-' + j, s = ui.net.struck[key];
-  return `<button class="ct ion ${s ? 'struck' : ''}" data-act="nstrike" data-k="${key}" ${ui.done ? 'disabled' : ''}>${F((n > 1 ? n : '') + ion)}</button>`;
+const ELC = { H:'#eef0f8', O:'#e43b44', C:'#8b93af', N:'#0099db', Cl:'#63c74d', Na:'#b55088', Al:'#c0cbdc', K:'#9a6ad8', Mg:'#3e8948', Fe:'#f77622', Ca:'#feae34', S:'#fee761' };
+function reactorHTML(L, R, c, locked){
+  const sp = (f, i) => `<div class="sp"><div class="step">${locked ? '' : `<button class="sbtn" data-act="coef" data-i="${i}" data-d="1" aria-label="Increase coefficient of ${f}">+</button>`}<span class="coef">${c[i]}</span>${locked ? '' : `<button class="sbtn" data-act="coef" data-i="${i}" data-d="-1" aria-label="Decrease coefficient of ${f}">−</button>`}</div><div class="form">${F(f)}</div></div>`;
+  const s = balState(L, R, c);
+  const dots = (n, el) => { const col = ELC[el] || '#2ce8f5'; const shown = Math.min(n, 24); return Array.from({length:shown}, () => `<i class="dot" style="background:${col}"></i>`).join('') + `<em>${n}</em>`; };
+  const rows = s.t.els.map(e => { const a = s.t.l[e] || 0, b = s.t.r[e] || 0, ok = a === b;
+    return `<div class="chrow"><b style="color:${ELC[e] || '#2ce8f5'}">${e}</b><div class="dots">${dots(a, e)}</div><span class="eqs ${ok ? 'y' : 'n'}">${ok ? '=' : '≠'}</span><div class="dots r">${dots(b, e)}</div></div>`; }).join('');
+  const ml = c.slice(0, L.length).reduce((x, y) => x + y, 0), mr = c.slice(L.length).reduce((x, y) => x + y, 0);
+  const good = s.bal && s.lowest;
+  const o = mainScene(); if (o && !locked) o.live = s.bal;
+  return `<div class="dev"><div class="eqrow">${L.map(sp).join('<span class="op">+</span>')}<span class="op">→</span>${R.map((f, k) => sp(f, L.length + k)).join('<span class="op">+</span>')}</div>
+    <div class="chamber"><div class="chrow"><span class="lab">Atom</span><span class="lab">In</span><span></span><span class="lab">Out</span></div>${rows}</div>
+    <div class="core"><span class="st ${s.bal ? 'y' : 'n'}">Atoms: ${s.bal ? (good ? 'stable' : 'reduce!') : 'unstable'}</span><span class="dim">Mol in ${ml} · mol out ${mr} (these don't have to match)</span></div></div>`;
 }
 function netBody(){
-  const t = ui.t, N = ui.net;
+  const t = ui.t, N = ui.net, okDone = ui.done && ui.lastOk;
   const allSplit = N.L.concat(N.R).every(x => x.st !== 'aq' || x.split);
-  const sideHTML = (arr, side) => arr.map((x, i) => {
-    if (x.st === 'aq' && x.split) return x.ions.map((io, j) => ionTile(side, i, j, io[0], io[1])).join('<span class="op">+</span>');
-    return `<button class="ct ${x.st === 's' ? 'solid' : ''}" data-act="nsplit" data-side="${side}" data-i="${i}" ${ui.done ? 'disabled' : ''}>${F((x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')')}</button>`;
-  }).join('<span class="op">+</span>');
-  const instr = allSplit ? 'Step 2: tap the spectator ions to cross them out. They appear unchanged on both sides.' : 'Step 1: tap each (aq) compound to split it into ions.';
-  return `<p class="q">Write the net ionic equation and name the spectator ions.</p>
-    <div class="bigeq" style="font-size:1.05rem">${F(t.L.map(x => (x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')').join(' + ') + ' → ' + t.R.map(x => (x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')').join(' + '))}</div>
-    <p class="dim" style="margin:0" id="ninstr">${instr}</p>
-    <div class="side"><h3>Reactants</h3><div class="tiles">${sideHTML(N.L, 'L')}</div></div>
-    <div class="arrowline">↓</div>
-    <div class="side"><h3>Products</h3><div class="tiles">${sideHTML(N.R, 'R')}</div></div>
+  const side = (arr, sd) => arr.map((x, i) => {
+    if (x.st === 'aq' && x.split) return x.ions.map((io, j) => { const key = sd + i + '-' + j, s = N.struck[key];
+      return `<button class="bb ${s ? 'vent' : ''} ${okDone && s ? 'gone' : ''}" data-act="nstrike" data-k="${key}" ${ui.done ? 'disabled' : ''}>${F((io[1] > 1 ? io[1] : '') + io[0])}</button>`; }).join('');
+    return `<button class="bb ${x.st === 's' ? 'solid' : 'cmp'} ${okDone && x.st === 's' ? 'drop' : ''}" data-act="nsplit" data-side="${sd}" data-i="${i}" ${ui.done ? 'disabled' : ''}>${F((x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')')}</button>`;
+  }).join('');
+  const instr = allSplit ? 'Step 2: tap the spectator ions to vent them. They appear unchanged on both sides.' : 'Step 1: tap each dissolved (aq) compound to split it into ions.';
+  return `<div class="win dev"><div class="devh"><span>Tank controls</span><span>${allSplit ? 'Step 2' : 'Step 1'}</span></div>
+    <p class="dim" style="margin:0;font-size:16px">${instr}</p>
+    <div class="tank"><span class="lab">Intake · reactants</span><div class="tiles">${side(N.L, 'L')}</div></div>
+    <div class="flow">▼ ▼ ▼</div>
+    <div class="tank"><span class="lab">Outflow · products</span><div class="tiles">${side(N.R, 'R')}</div></div>
     <p class="err" id="err"></p>
-    ${ui.done ? '' : `<button class="btn primary" data-act="submit" ${allSplit ? '' : 'disabled'}>Submit net ionic equation</button>`}`;
+    ${ui.done ? '' : `<button class="pb go big" data-act="submit" ${allSplit ? '' : 'disabled'}>Flush tank ▶</button>`}</div>`;
 }
 function redoxBody(){
   const t = ui.t, X = ui.rx;
-  const tile = (f, side, i) => {
-    let cls = '', tag = '';
-    if (side === 'L' && X.ox === i){ cls = 'sel-ox'; tag = 'Oxidized · loses e⁻'; }
-    if (side === 'L' && X.red === i){ cls = 'sel-red'; tag = 'Reduced · gains e⁻'; }
-    return `<button class="ct ${cls}" data-act="rpick" data-side="${side}" data-i="${i}" ${ui.done ? 'disabled' : ''}>${F(f)}${tag ? `<span class="tag">${tag}</span>` : ''}</button>`;
-  };
-  const prompt = X.ox === null ? 'Tap the reactant that is <b>oxidized</b> (loses electrons).' : X.red === null ? 'Now tap the reactant that is <b>reduced</b> (gains electrons).' : 'Ready. Send the electrons.';
-  return `<p class="q">${F(t.L.join(' + ') + ' → ' + t.R.join(' + '))}</p>
-    <p style="margin:0" id="rprompt">${prompt}</p>
-    <div class="rxwrap" id="rxwrap">
-      <div class="side"><h3>Reactants</h3><div class="tiles">${t.L.map((f, i) => tile(f, 'L', i)).join('<span class="op">+</span>')}</div></div>
-      <div class="arrowline">↓</div>
-      <div class="side"><h3>Products</h3><div class="tiles">${t.R.map((f, i) => tile(f, 'R', i)).join('<span class="op">+</span>')}</div></div>
+  const cell = (f, i) => { const cls = X.ox === i ? 'ox' : X.red === i ? 'red' : ''; const tg = X.ox === i ? 'Oxidized · loses e⁻' : X.red === i ? 'Reduced · gains e⁻' : 'Reactant';
+    return `<button class="cell ${cls}" data-act="rpick" data-side="L" data-i="${i}" ${ui.done ? 'disabled' : ''}><span>${F(f)}</span><span class="tg">${tg}</span></button>`; };
+  const prompt = X.ox === null ? 'Drag electrons FROM the reactant that loses them TO the one that gains them. Or tap the giver, then the taker.'
+    : X.red === null ? 'Now tap the reactant that gains the electrons.' : 'Wired. Send the electrons.';
+  return `<div class="win dev"><div class="devh"><span>Battery bank</span><span>OIL RIG</span></div>
+    <p class="dim" style="margin:0;font-size:16px" id="rprompt">${prompt}</p>
+    <div class="rxwrap" id="rxwrap"><svg aria-hidden="true"><polyline id="wire" points="" fill="none" stroke="#2ce8f5" stroke-width="5" stroke-dasharray="6 4" shape-rendering="crispEdges"></polyline></svg>
+      <div class="cells">${t.L.map(cell).join('')}</div>
+      <div class="flow">▼ products ▼</div>
+      <div class="outs">${t.R.map((f, i) => `<button class="bb" data-act="rpick" data-side="R" data-i="${i}" ${ui.done ? 'disabled' : ''}>${F(f)}</button>`).join('')}</div>
     </div>
     <p class="err" id="err"></p>
-    ${ui.done ? '' : `<div class="row"><button class="btn primary" data-act="submit" ${X.ox !== null && X.red !== null ? '' : 'disabled'}>Transfer electrons</button><button class="btn" data-act="rreset">Reset</button></div>`}`;
+    ${ui.done ? '' : `<div class="row"><button class="pb go" style="flex:1" data-act="submit" ${X.ox !== null && X.red !== null ? '' : 'disabled'}>Transfer e⁻ ▶</button><button class="pb" data-act="rreset">Reset</button></div>`}</div>`;
 }
 
-/* ---------- Grading ---------- */
+/* ========================================================================
+   GRADING
+   ======================================================================== */
 function gradeSci(){
-  const a = ui.b.a;
-  const ms = (document.getElementById('man').value || '').replace(/\s/g, '').replace(',', '.');
-  let es = (document.getElementById('exp').value || '').replace(/\s/g, '').replace('−', '-');
-  if (!/^(\d+\.?\d*|\.\d+)$/.test(ms)) return { err:'Enter the number part, like 1.23.' };
-  if (es === '') es = '0';
-  if (!/^[+-]?\d+$/.test(es)) return { err:'The exponent must be a whole number.' };
-  if (!ui.unit) return { err:'Pick a unit.' };
-  let e = parseInt(es, 10); if (ui.neg) e = -Math.abs(e);
+  const a = ui.b.a, k = ui.kp;
+  const ms = k.m;
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(ms)) return { err:'Punch in the number first, like 1.23.' };
+  if (!k.unit) return { err:'Pick a unit.' };
+  let e = parseInt(k.e || '0', 10); if (k.neg) e = -Math.abs(e);
   const mv = parseFloat(ms); if (mv === 0) return { err:'Zero isn\'t the answer here.' };
   const uv = mv * 10 ** e;
   const digits = ms.replace('.', '').replace(/^0+/, '');
@@ -947,16 +1537,13 @@ function gradeSci(){
   const normd = mv >= 1 && mv < 10;
   const ts = toSci(a.value, a.sf), ev = parseFloat(ts.m) * 10 ** ts.e, ulp = 10 ** (ts.e - a.sf + 1);
   const uUlp = 10 ** (Math.floor(Math.log10(Math.abs(uv))) - usf + 1);
-  const close = Math.abs(uv - a.value) <= Math.max(0.006 * Math.abs(a.value), 0.55 * uUlp, 1.01 * ulp);
-  const sfOk = usf === a.sf;
-  const exact = Math.abs(uv - ev) <= 1.01 * ulp;
-  const valOk = close && (!sfOk || exact);
-  const unitOk = ui.unit === a.unit;
+  const close = Math.abs(uv - a.value) <= Math.max(.006 * Math.abs(a.value), .55 * uUlp, 1.01 * ulp);
+  const sfOk = usf === a.sf, exact = Math.abs(uv - ev) <= 1.01 * ulp, valOk = close && (!sfOk || exact), unitOk = k.unit === a.unit;
   let vDet = 'Matches the answer key.';
   if (!close){
-    const ratio = uv / a.value, k = Math.round(Math.log10(Math.abs(ratio)));
-    vDet = (k !== 0 && Math.abs(ratio / 10 ** k - 1) < 0.01)
-      ? `Your digits are right, but the value is off by a factor of 10^${k}. Check your exponent${a.unit === 'mg' ? ' and the g → mg step' : ''}.`
+    const ratio = uv / a.value, p = Math.round(Math.log10(Math.abs(ratio)));
+    vDet = (p !== 0 && Math.abs(ratio / 10 ** p - 1) < .01)
+      ? `Your digits are right, but the value is off by a factor of 10^${p}. Check your exponent${a.unit === 'mg' ? ' and the g → mg step' : ''}.`
       : `This doesn't match the key. Compare your paper with the worked solution below.`;
   } else if (!valOk) vDet = 'Close, but the last digit is off. Keep extra digits until the final step.';
   const rows = [
@@ -965,253 +1552,418 @@ function gradeSci(){
     ['Scientific notation', normd, normd ? 'The number in front is between 1 and 10.' : 'The number in front must be at least 1 and less than 10.'],
     ['Units', unitOk, unitOk ? a.unit : `The unit should be ${a.unit}.`]
   ];
-  return { ok: valOk && sfOk && normd && unitOk, sev: close ? 'minor' : 'major', rows, you: `${ms}×10^${e} ${ui.unit}` };
+  return { ok:valOk && sfOk && normd && unitOk, sev:close ? 'minor' : 'major', rows, you:`${ms}×10^${e} ${k.unit}` };
 }
 const normT = (s, cs) => { s = String(s).replace(/[₀-₉]/g, d => '₀₁₂₃₄₅₆₇₈₉'.indexOf(d)).replace(/\s+/g, ''); return cs ? s : s.toLowerCase(); };
 const listChecks = rows => `<ul class="checks">${rows.map(r => `<li><span class="mk ${r[1] ? 'y' : 'n'}">${r[1] ? '✓' : '✗'}</span><span><b>${r[0]}.</b> ${F(r[2])}</span></li>`).join('')}</ul>`;
-const workList = lines => `<p class="sub-h">Worked solution · compare with your paper</p><ol class="work">${lines.map(l => `<li>${F(l)}</li>`).join('')}</ol>`;
-
+const workList = lines => `<span class="lab">Worked solution · compare with your paper</span><ol class="work">${lines.map(l => `<li>${F(l)}</li>`).join('')}</ol>`;
+function solutionHTML(t){
+  switch (t.type){
+    case 'calc': return `<p>Key: <b>${F(ansText(ui.b.a))}</b></p>${workList(ui.b.work)}`;
+    case 'numunit': return `<p>Key: <b>${t.v.toFixed(2)} ${t.unit}</b>. ${F(t.why)}</p>`;
+    case 'balance': { const idx = t.L.concat(t.R).indexOf(t.ask); return `<p>Balanced: <b>${F(balancedText(t.L, t.R, t.sol))}</b></p><p>Coefficient of ${F(t.ask)}: <b>${t.sol[idx]}</b></p>`; }
+    case 'nums': return `<p>Key: <b>${t.a[0]} mol</b> reactants, <b>${t.a[1]} mol</b> products. ${F(t.why)}</p>`;
+    case 'tf': return `<p>Answer: <b>${t.a ? 'True' : 'False'}</b>. ${F(t.why)}</p>`;
+    case 'choice': return `<p>Answer: <b>${t.opts[t.a]}</b>. ${F(t.why)}</p>`;
+    case 'classify': return `<p>Answer: <b>${CLASSES.find(c => c[0] === t.a)[1]}</b>. ${F(t.why)}</p>`;
+    case 'text': return `<p>${t.fields.map(f => `${F(f.label)}: <b>${F(f.disp || f.accept[0])}</b>`).join('<br>')}</p><p>${F(t.why)}</p>`;
+    case 'net': return `<p>Net ionic: <b>${F(t.net)}</b></p><p>Spectators: <b>${F(t.spect.join(', '))}</b></p>`;
+    case 'redox': return `<p>Oxidized: <b>${F(t.L[t.ox])}</b>. Reduced: <b>${F(t.L[t.red])}</b>.</p><p>${F(t.why)}</p>`;
+  }
+  return '';
+}
 function submit(){
   if (ui.done) return;
-  const t = ui.t; const err = document.getElementById('err'); const setErr = m => { if (err) err.textContent = m; };
+  const t = ui.t, err = document.getElementById('err'); const setErr = m => { if (err) err.textContent = m; SND.play('jam'); };
   let ok = false, sev = 'major', html = '';
   switch (t.type){
     case 'calc': {
       const g = gradeSci(); if (g.err) return setErr(g.err);
       const pre = [];
-      if (ui.flags.sel) pre.push(['Values picked', false, 'You picked the wrong set of atomic masses in step 1.']);
+      if (ui.flags.sel) pre.push(['Cartridges', false, 'You loaded the wrong set of atomic masses in step 1.']);
       if (ui.flags.bal) pre.push(['Balancing', false, 'The equation wasn\'t balanced on your first try.']);
       ok = g.ok && !ui.flags.sel && !ui.flags.bal; sev = g.sev;
-      html = `<p>You entered <b>${F(g.you)}</b>. Key: <b>${F(ansText(ui.b.a))}</b></p>${listChecks(pre.concat(g.rows))}${workList(ui.b.work)}`;
+      html = `<p>You entered <b>${F(g.you)}</b></p>${listChecks(pre.concat(g.rows))}${solutionHTML(t)}`;
       break;
     }
     case 'numunit': {
-      const v = parseFloat((document.getElementById('nv').value || '').replace(',', '.'));
-      if (isNaN(v)) return setErr('Enter a number.'); if (!ui.unit) return setErr('Pick a unit.');
-      const vOk = Math.abs(v - t.v) <= 0.06, uOk = ui.unit === t.unit; ok = vOk && uOk; sev = vOk ? 'minor' : 'major';
-      html = listChecks([['Value', vOk, vOk ? 'Correct.' : `The key says ${t.v}.`], ['Unit', uOk, uOk ? t.unit : `It should be ${t.unit}. ${t.unit === 'g' ? 'One mole is measured in grams.' : 'One particle is measured in amu.'}`]]) + `<p>${F(t.why)}</p>`;
+      const v = parseFloat(ui.kp.m);
+      if (isNaN(v)) return setErr('Punch in a number.'); if (!ui.kp.unit) return setErr('Set the analyzer to amu or g.');
+      const vOk = Math.abs(v - t.v) <= .06, uOk = ui.kp.unit === t.unit; ok = vOk && uOk; sev = vOk ? 'minor' : 'major';
+      html = listChecks([['Value', vOk, vOk ? 'Correct.' : `The key says ${t.v.toFixed(2)}.`], ['Unit', uOk, uOk ? t.unit : `It should be ${t.unit}. ${t.unit === 'g' ? 'One mole is measured in grams.' : 'One particle is measured in amu.'}`]]) + `<p>${F(t.why)}</p>`;
       break;
     }
     case 'balance': {
       const s = balState(t.L, t.R, ui.coefs); ok = ui.coefs.every((x, i) => x === t.sol[i]);
-      const idx = t.L.concat(t.R).indexOf(t.ask);
-      const msg = ok ? '' : !s.bal ? 'Your equation isn\'t balanced yet. Look at the red rows in the atom table.' : !s.lowest ? 'Balanced, but not in lowest whole numbers. Divide every coefficient by the same number.' : 'Balanced, but not the expected coefficients.';
-      html = `${msg ? `<p>${msg}</p>` : ''}<p>Balanced: <b>${F(balancedText(t.L, t.R, t.sol))}</b></p><p>Coefficient of ${F(t.ask)}: <b>${t.sol[idx]}</b></p>`;
-      if (!ok){ ui.coefs = t.sol.slice(); }
+      const msg = ok ? '' : !s.bal ? 'The equation wasn\'t balanced. Check the ≠ rows.' : !s.lowest ? 'Balanced, but not in lowest whole numbers. Divide every coefficient by the same number.' : 'Balanced, but not the expected coefficients.';
+      html = (msg ? `<p>${msg}</p>` : '') + solutionHTML(t);
+      if (!ok) ui.coefs = t.sol.slice();
       break;
     }
-    case 'nums': {
-      const a0 = parseInt(document.getElementById('n0').value, 10), a1 = parseInt(document.getElementById('n1').value, 10);
-      if (isNaN(a0) || isNaN(a1)) return setErr('Fill in both numbers.');
-      ok = a0 === t.a[0] && a1 === t.a[1];
-      html = `<p>Key: <b>${t.a[0]} mol</b> reactants, <b>${t.a[1]} mol</b> products.</p><p>${F(t.why)}</p>`; break;
-    }
+    case 'nums': ok = ui.nv[0] === t.a[0] && ui.nv[1] === t.a[1]; html = solutionHTML(t); break;
     case 'text': {
       const vals = t.fields.map((f, i) => normT(document.getElementById('tx' + i).value, f.cs));
-      if (vals.some(v => !v)) return setErr('Fill in every box.');
+      if (vals.some(v => !v)) return setErr('Fill in every line of the label.');
       const rows = t.fields.map((f, i) => { const good = f.accept.map(a => normT(a, f.cs)).includes(vals[i]); return [f.label, good, good ? 'Correct.' : `Answer: ${f.disp || f.accept[0]}`]; });
-      ok = rows.every(r => r[1]);
-      html = listChecks(rows) + `<p>${F(t.why)}</p>`; break;
+      ok = rows.every(r => r[1]); html = listChecks(rows) + `<p>${F(t.why)}</p>`; break;
     }
     case 'net': {
-      const N = ui.net; const wrong = [];
-      [['L', N.L], ['R', N.R]].forEach(([side, arr]) => arr.forEach((x, i) => { if (x.ions) x.ions.forEach((io, j) => {
-        const k = side + i + '-' + j, isSp = t.spect.includes(io[0]); if (!!N.struck[k] !== isSp) wrong.push(io[0]); }); }));
+      const N = ui.net, wrong = [];
+      [['L', N.L], ['R', N.R]].forEach(([sd, arr]) => arr.forEach((x, i) => { if (x.ions) x.ions.forEach((io, j) => { const k = sd + i + '-' + j; if (!!N.struck[k] !== t.spect.includes(io[0])) wrong.push(io[0]); }); }));
       ok = !wrong.length && !N.solidTap;
-      html = `${N.solidTap ? '<p>You tried to split a solid. Solids stay together as one unit.</p>' : ''}${wrong.length ? `<p>Check these ions: ${F([...new Set(wrong)].join(', '))}.</p>` : ''}
-        <p>Net ionic: <b>${F(t.net)}</b></p><p>Spectators: <b>${F(t.spect.join(', '))}</b></p>`;
+      html = `${N.solidTap ? '<p>You tried to split a solid. Solids stay together.</p>' : ''}${wrong.length ? `<p>Check these ions: ${F([...new Set(wrong)].join(', '))}.</p>` : ''}${solutionHTML(t)}`;
       break;
     }
     case 'redox': {
       const X = ui.rx; ok = X.ox === t.ox && X.red === t.red && !X.prodTap;
-      html = `${X.prodTap ? '<p>You tapped a product. Pick from the reactants only.</p>' : ''}<p>Oxidized: <b>${F(t.L[t.ox])}</b>. Reduced: <b>${F(t.L[t.red])}</b>.</p><p>${F(t.why)}</p>`;
-      if (ok) sendElectrons(); break;
+      html = `${X.prodTap ? '<p>You picked a product. Pick from the reactants only.</p>' : ''}${solutionHTML(t)}`;
+      break;
     }
   }
   resolve(ok, sev, html);
 }
 function pickChoice(v){
-  if (ui.done) return;
-  const t = ui.t; let ok = false, html = '';
-  if (t.type === 'tf'){ const ans = v === '0'; ok = ans === t.a; html = `<p>Answer: <b>${t.a ? 'True' : 'False'}</b>. ${F(t.why)}</p>`; }
-  if (t.type === 'choice'){ ok = +v === t.a; html = `<p>Answer: <b>${t.opts[t.a]}</b>. ${F(t.why)}</p>`; }
-  if (t.type === 'classify'){ ok = v === t.a; const nm = CLASSES.find(c => c[0] === t.a)[1]; html = `<p>Answer: <b>${nm}</b>. ${F(t.why)}</p>`; }
+  if (ui.done || ui.busy) return;
+  const t = ui.t; let ok = false;
+  if (t.type === 'tf') ok = (v === '0') === t.a;
+  if (t.type === 'choice') ok = +v === t.a;
+  if (t.type === 'classify') ok = v === t.a;
   ui.picked = v;
-  resolve(ok, 'major', html);
+  resolve(ok, 'major', solutionHTML(t));
 }
+const OKL = ['Repair holds. Nice.', 'Clean. Exactly what the key says.', 'That\'s how it\'s done.', 'Confirmed. Moving on.', 'Good. I\'d have gotten that too, before the meteor.'];
+const MINORL = ['The number is right, but the format isn\'t. On the quiz that still costs you.', 'So close. Check sig figs, notation, and units.'];
+const FAILL = ['Fault detected. Compare your paper with the worked solution.', 'That\'s off. Find the step where your work splits from mine.', 'Not this time. Read the solution, then we go again with new numbers.'];
 function resolve(ok, sev, html){
   const c = st.cur, t = ui.t, m = MODS[c.m];
-  ui.done = true;
+  ui.done = true; ui.lastOk = ok; stopTimer();
+  const rankBefore = rankIdx(st.xp);
   const s = st.stats[t.topic] || (st.stats[t.topic] = {n:0, ok:0}); s.n++; if (ok) s.ok++;
   if (!t.reroute && !m.final && !st.done.includes(m.id)){ st.score.n++; if (ok) st.score.ok++; }
-  let extra = '';
+  const earned = []; let extra = '';
+  const o = mainScene(); const now = performance.now() / 1000; const r = sceneRect();
   if (ok){
-    const gain = t.reroute ? 4 : 10; st.energy += gain; if (!t.reroute) c.first++;
-    extra = `<p class="gain">+${gain} energy</p>`;
+    c.ok = (c.ok || 0) + 1; if (!t.reroute) c.first++;
+    st.streak++; st.best = Math.max(st.best, st.streak);
+    const gain = t.reroute ? 4 : 10, bonus = st.streak >= 5 ? 10 : st.streak >= 3 ? 5 : 0;
+    st.energy += gain + bonus; st.xp += gain + bonus;
+    if (t.type === 'calc'){ st.calcStreak++; if (st.calcStreak >= 5) earned.push('sniper'); }
+    earned.push('first'); if (st.streak >= 3) earned.push('s3'); if (st.streak >= 5) earned.push('s5'); if (st.streak >= 10) earned.push('s10');
+    if (t.reroute) earned.push('comeback');
+    extra = `<p class="gain">+${gain} energy${bonus ? ` · combo x${st.streak} +${bonus}` : ''}</p>`;
+    if (o){ o.okUntil = now + 3; o.live = false; if (m.final) o.charge = c.ok / c.queue.length; }
+    SND.play(bonus ? 'combo' : 'ok'); flash('green');
+    fx.burst(r.left + r.width / 2, r.top + r.height / 2, 30, [C.na, C.cu, C.ba, C.white]);
+    const en = document.getElementById('enev').getBoundingClientRect();
+    fx.fly(r.left + r.width / 2, r.top + r.height / 2, en.left + 6, en.top + 6, 8, C.na);
+    say(st.streak >= 3 ? `${st.streak} in a row. Combo bonus.` : pick(OKL), 'happy');
+    if (t.type === 'redox') setTimeout(sendElectrons, 50);
+    const bar = view.querySelector('.cbar i'); if (bar) bar.style.width = Math.round(100 * c.ok / c.queue.length) + '%';
   } else {
+    st.streak = 0; if (t.type === 'calc') st.calcStreak = 0;
     const d = sev === 'minor' ? 6 : 15; st.hull -= d; st.missed[t.topic] = (st.missed[t.topic] || 0) + 1;
-    extra = `<p class="dmg">−${d} hull${sev === 'minor' ? ' (formatting only, lighter damage)' : ''}</p>`;
-    if (st.hull <= 0){ st.patches++; st.hull = 35; extra += `<p class="dmg">Hull failure. MOLLY used an emergency patch (${st.patches} so far). Hull is back to 35.</p>`; }
-    if ((t.depth || 0) < 2){ c.queue.push(variantOf(t, true)); c.rer++; extra += `<p class="dim">MOLLY queued a rerouted version with new values before this system closes.</p>`; }
+    extra = `<p class="dmg">−${d} hull${sev === 'minor' ? ' · formatting only' : ''}</p>`;
+    if (st.hull <= 0){ st.patches++; st.hull = 35; extra += `<p class="dmg">Hull failure! Emergency patch #${st.patches}. Hull back to 35.</p>`; }
+    if ((t.depth || 0) < 2){ c.queue.push(variantOf(t, true)); c.rer++; extra += `<p class="dim" style="font-size:15px">MOLLY queued a rerouted version with new values.</p>`; }
+    if (o){ o.failUntil = now + 1.2; o.live = false; }
+    SND.play(sev === 'minor' ? 'minor' : 'fail'); flash('red'); shake();
+    fx.burst(r.left + r.width / 2, r.top + r.height / 2, 24, [C.sr, C.orange, C.na]);
+    say(sev === 'minor' ? pick(MINORL) : pick(FAILL) + ' Rule: ' + stripTags(TOPICS[t.topic].rule).split('. ')[0] + '.', sev === 'minor' ? 'smug' : 'worried');
   }
   save();
+  const snap = {}; view.querySelectorAll('input').forEach(i => { snap[i.id] = i.value; });
   drawBody(); drawHints();
+  for (const id in snap){ const el = document.getElementById(id); if (el) el.value = snap[id]; }
   if (['tf','choice','classify'].includes(t.type)) markPicked(ok);
-  restoreInputs();
-  document.getElementById('fb').innerHTML = `<div class="fb ${ok ? 'ok' : 'no'}"><div class="fbh">${ok ? 'Repair holds' : 'Not quite'}</div>
-    <div class="fbb">${html}${extra}<button class="btn primary" data-act="next">Continue</button></div></div>`;
-  hud();
-  document.getElementById('fb').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start'});
+  document.getElementById('fb').innerHTML = `<div class="win fb ${ok ? 'ok' : 'no'}"><div class="fbh">${ok ? '★ System repaired' : '✗ Fault detected'}</div>
+    <div class="fbb">${html}${extra}<button class="pb go big" data-act="next">Next ▶</button></div></div>`;
+  hud(); award(earned);
+  const rankAfter = rankIdx(st.xp);
+  if (rankAfter > rankBefore) setTimeout(() => { toast('Promoted!', 'You are now ' + RANKS[rankAfter][1] + '.', C.na); SND.play('rank'); }, 1200);
+  setTimeout(() => { const f = document.getElementById('fb'); if (f) f.scrollIntoView({behavior:reduced() ? 'auto' : 'smooth', block:'start'}); }, 250);
 }
-function snapInputs(){ ui.snap = {}; view.querySelectorAll('input').forEach(i => { ui.snap[i.id] = i.value; }); }
-function restoreInputs(){ if (!ui.snap) return; for (const id in ui.snap){ const el = document.getElementById(id); if (el) el.value = ui.snap[id]; } }
+const stripTags = s => String(s).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 function markPicked(ok){
   view.querySelectorAll('[data-act="pickc"]').forEach(b => {
-    const t = ui.t; const v = b.dataset.v;
+    const t = ui.t, v = b.dataset.v;
     const right = t.type === 'tf' ? ((v === '0') === t.a) : t.type === 'choice' ? +v === t.a : v === t.a;
-    if (right) b.style.borderColor = 'var(--ba)';
-    if (v === ui.picked && !ok) b.style.borderColor = 'var(--sr)';
+    if (right){ b.classList.remove('bad', 'go', 'cy'); b.classList.add('ok'); b.disabled = false; b.style.pointerEvents = 'none'; }
+    else if (v === ui.picked && !ok){ b.classList.remove('ok', 'go', 'cy'); b.classList.add('bad'); b.disabled = false; b.style.pointerEvents = 'none'; }
   });
 }
 function sendElectrons(){
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  requestAnimationFrame(() => {
-    const wrap = document.getElementById('rxwrap'); if (!wrap) return;
-    const tiles = wrap.querySelectorAll('[data-side="L"]'); const a = tiles[ui.t.ox], b = tiles[ui.t.red]; if (!a || !b) return;
-    const w = wrap.getBoundingClientRect(), ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
-    const x0 = ra.left - w.left + ra.width / 2, y0 = ra.top - w.top + ra.height / 2, x1 = rb.left - w.left + rb.width / 2, y1 = rb.top - w.top + rb.height / 2;
-    for (let k = 0; k < 3; k++){
-      const d = document.createElement('span'); d.className = 'edot'; d.style.left = (x0 - 5) + 'px'; d.style.top = (y0 - 5) + 'px'; wrap.appendChild(d);
-      const anim = d.animate([{transform:'translate(0,0)', opacity:1}, {transform:`translate(${(x1 - x0) / 2}px,${(y1 - y0) / 2 - 40}px)`, opacity:1}, {transform:`translate(${x1 - x0}px,${y1 - y0}px)`, opacity:0}], {duration:900, delay:k * 180, easing:'ease-in-out', fill:'both'});
-      anim.onfinish = () => d.remove();
-    }
-  });
+  if (reduced()) return;
+  const wrap = document.getElementById('rxwrap'); if (!wrap) return;
+  const tiles = wrap.querySelectorAll('.cell'); const a = tiles[ui.t.ox], b = tiles[ui.t.red]; if (!a || !b) return;
+  const w = wrap.getBoundingClientRect(), ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+  const x0 = ra.left - w.left + ra.width / 2, y0 = ra.top - w.top + 10, x1 = rb.left - w.left + rb.width / 2, y1 = rb.top - w.top + 10;
+  SND.play('zap');
+  for (let k = 0; k < 4; k++){
+    const d = document.createElement('span'); d.className = 'edot'; d.style.left = (x0 - 5) + 'px'; d.style.top = (y0 - 5) + 'px'; wrap.appendChild(d);
+    const an = d.animate([{transform:'translate(0,0)'}, {transform:`translate(${(x1 - x0) / 2}px,${-36}px)`}, {transform:`translate(${x1 - x0}px,${y1 - y0}px)`}], {duration:900, delay:k * 160, easing:'steps(9)', fill:'both'});
+    an.onfinish = () => d.remove();
+  }
 }
 
-/* ---------- Module completion, ending, report ---------- */
+/* Exam timer (escape only) */
+function startTimer(sec){
+  ui.deadline = Date.now() + sec * 1000;
+  const tick = () => {
+    const el = document.getElementById('timer'); const left = Math.max(0, Math.ceil((ui.deadline - Date.now()) / 1000));
+    if (el){ el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; el.classList.toggle('low', left <= 15); }
+    if (left <= 10 && left > 0 && !ui.done) SND.play('tick');
+    if (left <= 0){ stopTimer(); if (!ui.done) resolve(false, 'major', '<p>Time ran out.</p>' + solutionHTML(ui.t)); }
+  };
+  tick(); ui.tint = setInterval(tick, 1000);
+}
+function stopTimer(){ if (ui && ui.tint){ clearInterval(ui.tint); ui.tint = null; } }
+
+/* ========================================================================
+   MODULE END, ENDING, REPORT, BADGES
+   ======================================================================== */
 function nextTask(){
   const c = st.cur; c.pos++;
   if (c.pos < c.queue.length){ save(); renderTask(); return; }
   const m = MODS[c.m], tot = c.queue.filter(x => !x.reroute).length;
-  if (!st.done.includes(m.id)) st.done.push(m.id);
+  const first = !st.done.includes(m.id);
+  if (first) st.done.push(m.id);
   const res = { first:c.first, tot, rer:c.rer };
+  const earned = [];
+  if (c.first === tot) earned.push('flawless');
+  if (!c.hints) earned.push('nohint');
   st.cur = null;
-  if (m.final){ st.finished = true; save(); renderEnding(res); return; }
+  if (m.final){ st.finished = true; earned.push('jump'); if (!st.patches) earned.push('iron'); save(); renderEnding(res, earned); return; }
   save();
-  show(`<section class="task">
-    <div class="meta"><span class="chip">System ${MODS.indexOf(m) + 1} · online</span></div>
-    <h1 class="disp" style="font-size:2.6rem;text-transform:uppercase">${m.name} restored</h1>
-    ${molly(m.outro)}
-    <div class="rule"><span class="rl">Repair log</span><p>First-try correct: <b>${res.first} of ${res.tot}</b>. Reroutes needed: <b>${res.rer}</b>.</p></div>
-    <button class="btn primary" data-act="map">Back to station map</button>
+  show(`<section class="scr">
+    ${sceneHTML(m.id, 1, `<span class="stag">SYSTEM ${MODS.indexOf(m) + 1} · ONLINE</span>`)}
+    <h1 class="h1">${m.name} restored</h1>
+    ${talkHTML()}
+    <div class="stats">
+      <div class="stat"><span class="lab">First try</span><b>${res.first}/${res.tot}</b></div>
+      <div class="stat"><span class="lab">Reroutes</span><b>${res.rer}</b></div>
+      <div class="stat"><span class="lab">Best streak</span><b>${st.best}</b></div>
+    </div>
+    <div id="dlgbtns"></div>
   </section>`);
+  SND.play('power'); flash('green');
+  const r = sceneRect(); fx.burst(r.left + r.width / 2, r.top + r.height / 2, 50, [C.na, C.cu, C.ba, C.white, C.pink], 7);
+  ui.dlg = { lines:m.outro, i:0, after:`<button class="pb go big" data-act="map">Back to map ▶</button>`, exprs:m.outro.map(() => 'happy') };
+  dlgStep();
+  award(earned);
 }
-function renderEnding(res){
+function renderEnding(res, earned){
   const pct = st.score.n ? Math.round(100 * st.score.ok / st.score.n) : 0;
   let head, lines;
-  if (pct >= 85 && st.patches === 0){ head = 'Course set for home'; lines = ['All systems green. You did the math by hand and it held.', 'You\'re ready for the quiz. Run a remix once more the night before to keep it fresh.']; }
-  else if (pct >= 65){ head = 'Limping home'; lines = ['We\'re moving, but a few systems are running on patches.', 'Check the study report for the topics that cost you hull, then run a remix.']; }
-  else { head = 'Drifting, but alive'; lines = ['We got everything online, barely.', 'Go through the study report, reread those rule cards, and run a remix run. The numbers change every time.']; }
-  show(`<section class="task">
-    <h1 class="disp" style="font-size:2.8rem;text-transform:uppercase">${head}</h1>
-    ${molly(lines)}
-    <div class="rule"><span class="rl">Final numbers</span>
-      <p>Study guide problems right on the first try: <b>${st.score.ok} of ${st.score.n}</b> (${pct}%).<br>Final check first-try: <b>${res.first} of ${res.tot}</b>. Emergency patches: <b>${st.patches}</b>.</p></div>
-    <div class="stack"><button class="btn primary" data-act="report">Open study report</button><button class="btn" data-act="remix">${ui.confirm === 'remix' ? 'Tap again to start a remix run' : 'Remix run: new numbers'}</button></div>
+  if (pct >= 85 && st.patches === 0){ head = 'Course set for home'; lines = ['Jump complete. Every system green, and you did the math by hand.', 'You\'re ready for the quiz. Run a remix the night before to keep it fresh.']; }
+  else if (pct >= 65){ head = 'Limping home'; lines = ['We made the jump, but a few systems are running on patches.', 'Check the study report for the topics that cost you hull, then run a remix.']; }
+  else { head = 'Barely made it'; lines = ['We made the jump. Barely.', 'Go through the study report, reread those manual pages, and run a remix. The numbers change every time.']; }
+  show(`<section class="scr" style="text-align:center">
+    <canvas data-art="ship" data-lit="1" class="pix shipart" width="48" height="64" style="margin:0 auto" aria-hidden="true"></canvas>
+    <h1 class="h1">${head}</h1>
+    ${talkHTML()}
+    <div class="stats">
+      <div class="stat"><span class="lab">Guide first-try</span><b>${st.score.ok}/${st.score.n}</b></div>
+      <div class="stat"><span class="lab">Jump check</span><b>${res.first}/${res.tot}</b></div>
+      <div class="stat"><span class="lab">Patches</span><b>${st.patches}</b></div>
+      <div class="stat"><span class="lab">Rank</span><b style="font-size:11px">${RANKS[rankIdx(st.xp)][1]}</b></div>
+    </div>
+    <div id="dlgbtns"></div>
+    <div class="stack"><button class="pb" data-act="report">Study report</button><button class="pb" data-act="badges">Badges</button><button class="pb" data-act="remix">${ui.confirm === 'remix' ? 'Tap again to remix' : 'Remix: new numbers'}</button></div>
   </section>`);
+  SND.play('warp'); stars.warp = 1; if (!reduced()) setTimeout(() => { stars.warp = 0; }, 2600); else stars.warp = 0;
+  flash('green');
+  ui.dlg = { lines, i:0, after:'', exprs:lines.map(() => 'happy') }; dlgStep();
+  award(earned);
 }
 function renderReport(){
   const rows = Object.keys(TOPICS).map(k => {
-    const s = st.stats[k]; const pct = s && s.n ? Math.round(100 * s.ok / s.n) : null;
+    const s = st.stats[k], pct = s && s.n ? Math.round(100 * s.ok / s.n) : null;
     const col = pct === null ? 'var(--line)' : pct >= 80 ? 'var(--ba)' : pct >= 60 ? 'var(--na)' : 'var(--sr)';
-    return { k, pct, html: `<div class="rrow"><span>${F(TOPICS[k].name)} <span class="dim" style="font-size:.85rem">${s ? `(${s.ok}/${s.n})` : '(not tried yet)'}</span></span><span class="rpct">${pct === null ? '—' : pct + '%'}</span><div class="rbar"><i style="width:${pct || 0}%;background:${col}"></i></div></div>` };
+    const on = pct === null ? 0 : Math.round(pct / 10);
+    return { k, pct, html:`<div class="rrow"><span>${F(TOPICS[k].name)} <span class="dim" style="font-size:14px">${s ? `(${s.ok}/${s.n})` : '(not tried)'}</span></span><span class="rpct">${pct === null ? '--' : pct + '%'}</span>
+      <div class="rsegs">${Array.from({length:10}, (_, i) => `<i style="${i < on ? 'background:' + col : ''}"></i>`).join('')}</div></div>` };
   });
   const weak = rows.filter(r => r.pct !== null && r.pct < 80);
-  show(`<section class="task">
-    <h1 class="disp" style="font-size:2.6rem;text-transform:uppercase">Study report</h1>
-    <p class="dim" style="margin:0">Accuracy per topic across every attempt, including reroutes.</p>
-    <div class="rep">${rows.map(r => r.html).join('')}</div>
-    ${weak.length ? `<p class="sub-h" style="margin-top:8px">Review these rules</p>${weak.map(r => ruleCard(r.k)).join('')}` : (Object.keys(st.stats).length ? '<p>No weak topics so far.</p>' : '')}
-    <div class="row"><button class="btn primary" data-act="map">Station map</button><button class="btn" data-act="title">Title screen</button></div>
+  show(`<section class="scr">
+    <h1 class="h1">Study report</h1>
+    <div class="win rep">${rows.map(r => r.html).join('')}</div>
+    ${weak.length ? `<span class="lab">Review these manual pages</span>${weak.map(r => ruleCard(r.k)).join('')}` : (Object.keys(st.stats).length ? '<p>No weak topics so far.</p>' : '')}
+    <div class="row"><button class="pb go" data-act="map">Station map</button><button class="pb" data-act="title">Title</button></div>
+  </section>`);
+}
+function renderBadges(){
+  const ri = rankIdx(st.xp), nxt = RANKS[ri + 1];
+  show(`<section class="scr">
+    <h1 class="h1">${RANKS[ri][1]}</h1>
+    <p class="dim" style="margin:0">${st.xp} XP${nxt ? ` · ${nxt[0] - st.xp} XP to ${nxt[1]}` : ' · top rank'} · best streak ${st.best}</p>
+    <div class="bgrid">${BADGES.map(b => { const has = st.badges.includes(b.id);
+      return `<div class="win bdg ${has ? '' : 'lock'}"><canvas class="pix" width="12" height="14" data-medal="${b.c}" data-lock="${has ? 0 : 1}" aria-hidden="true"></canvas><b>${b.name}</b><span>${b.d}</span></div>`; }).join('')}</div>
+    <div class="row"><button class="pb go" data-act="map">Station map</button><button class="pb" data-act="title">Title</button></div>
   </section>`);
 }
 
-/* ---------- Events ---------- */
+/* ========================================================================
+   INPUT
+   ======================================================================== */
+function keyIn(k){
+  const kp = ui.kp; if (!kp || ui.done) return;
+  const sci = ui.t.type === 'calc';
+  if (k === 'exp'){ if (sci) kp.f = kp.f === 'm' ? 'e' : 'm'; }
+  else if (k === 'neg'){ if (sci){ kp.neg = !kp.neg; kp.f = 'e'; } }
+  else if (k === 'bk'){ if (kp.f === 'e' && !kp.e && sci){ kp.f = 'm'; } else kp[kp.f] = kp[kp.f].slice(0, -1); }
+  else if (k === 'clr'){ kp.m = ''; kp.e = ''; kp.neg = false; kp.f = 'm'; }
+  else if (k === '.'){ if (kp.f === 'm' && !kp.m.includes('.')) kp.m = (kp.m || '0') + '.'; }
+  else if (/^\d$/.test(k)){ if (kp.f === 'm'){ if (kp.m.length < 9) kp.m += k; } else if (kp.e.length < 2) kp.e += k; }
+  SND.play('key');
+  const lcd = document.getElementById('lcd'); if (lcd) lcd.outerHTML = lcdHTML(sci);
+  view.querySelectorAll('[data-k="exp"]').forEach(b => b.classList.toggle('on', kp.f === 'e'));
+  view.querySelectorAll('[data-k="neg"]').forEach(b => b.classList.toggle('on', kp.neg));
+}
+document.addEventListener('keydown', e => {
+  if (!ui.kp || ui.done || e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey) return;
+  if (!document.getElementById('lcd')) return;
+  const map = {Backspace:'bk', Delete:'clr', e:'exp', E:'exp', '^':'exp', '-':'neg', '.':'.', ',':'.'};
+  if (/^\d$/.test(e.key)){ keyIn(e.key); e.preventDefault(); }
+  else if (map[e.key]){ keyIn(map[e.key]); e.preventDefault(); }
+  else if (e.key === 'Enter'){ const s = view.querySelector('[data-act="submit"]:not([disabled])'); if (s){ e.preventDefault(); s.click(); } }
+});
+view.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+  const s = view.querySelector('[data-act="submit"]:not([disabled])'); if (s){ e.preventDefault(); s.click(); }
+});
+
+/* Drag electrons between reactant cells */
+let drag = null;
+view.addEventListener('pointerdown', e => {
+  const cell = e.target.closest('.cell'); if (!cell || ui.done || !ui.rx) return;
+  const wrap = document.getElementById('rxwrap'); const w = wrap.getBoundingClientRect(), r = cell.getBoundingClientRect();
+  drag = { from:+cell.dataset.i, x0:r.left - w.left + r.width / 2, y0:r.top - w.top + r.height / 2, moved:false, sx:e.clientX, sy:e.clientY };
+});
+view.addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 12) drag.moved = true;
+  if (!drag.moved) return;
+  const wrap = document.getElementById('rxwrap'); if (!wrap) return; const w = wrap.getBoundingClientRect();
+  const x = e.clientX - w.left, y = e.clientY - w.top, mx = (drag.x0 + x) / 2;
+  document.getElementById('wire').setAttribute('points', `${drag.x0},${drag.y0} ${mx},${drag.y0} ${mx},${y} ${x},${y}`);
+});
+addEventListener('pointerup', e => {
+  if (!drag) return; const d = drag; drag = null;
+  const wire = document.getElementById('wire'); if (wire) wire.setAttribute('points', '');
+  if (!d.moved) return;
+  ui.rx.dragged = true;
+  const el = document.elementFromPoint(e.clientX, e.clientY); const tgt = el && el.closest('[data-act="rpick"]');
+  if (!tgt) return;
+  if (tgt.dataset.side === 'R'){ ui.rx.prodTap = true; SND.play('jam'); tgt.classList.add('shk'); const er = document.getElementById('err'); if (er) er.textContent = 'That\'s a product. Electrons move between reactants.'; return; }
+  const to = +tgt.dataset.i; if (to === d.from) return;
+  ui.rx.ox = d.from; ui.rx.red = to; SND.play('zip'); drawBody();
+});
+
+document.addEventListener('pointerdown', () => SND.init(), {once:true});
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const act = b.dataset.act;
   if (act !== 'new' && act !== 'remix') ui.confirm = null;
+  if (!['key', 'dlg-next', 'unit', 'coef', 'nstrike', 'nsplit', 'rpick', 'cart', 'nv', 'pickc', 'submit'].includes(act)) SND.play('tap');
   switch (act){
     case 'title': renderTitle(); break;
-    case 'continue': st.done.length || st.cur ? renderMap() : renderBoot(); break;
+    case 'continue': renderMap(); break;
     case 'new':
-      if ((st.done.length || st.cur) && ui.confirm !== 'new'){ ui.confirm = 'new'; renderTitle(); break; }
-      st = fresh(); save(); ui = {}; renderBoot(); break;
+      if (hasRun() && ui.confirm !== 'new'){ ui.confirm = 'new'; b.textContent = 'Tap again to erase'; break; }
+      { const snd = st.sound; st = fresh(); st.sound = snd; } save(); ui = {}; renderBoot(); break;
     case 'remix':
-      if (ui.confirm !== 'remix'){ ui.confirm = 'remix'; b.textContent = (st.done.length || st.cur) && !st.finished ? 'Tap again: erase progress and remix' : 'Tap again to start a remix run'; break; }
-      st = fresh(); st.remix = true; save(); ui = {}; renderBoot(); break;
+      if (ui.confirm !== 'remix'){ ui.confirm = 'remix'; b.textContent = 'Tap again to remix'; break; }
+      { const snd = st.sound, xp = st.xp, badges = st.badges, best = st.best; st = fresh(); Object.assign(st, {sound:snd, xp, badges, best, remix:true}); } save(); ui = {}; renderBoot(); break;
     case 'map': renderMap(); break;
-    case 'mod': { const i = +b.dataset.i; if (!unlocked(i)) break; if (st.cur && st.cur.m !== i) st.cur = null; startModule(i); break; }
+    case 'mod': {
+      const i = +b.dataset.i;
+      if (!unlocked(i)){ SND.play('jam'); b.classList.add('shk'); setTimeout(() => b.classList.remove('shk'), 300); say(`That room is sealed. Fix the ${MODS[i - 1].name} first.`, 'smug'); break; }
+      if (st.cur && st.cur.m !== i) st.cur = null;
+      enterRoom(i, b); break;
+    }
+    case 'dlg-next': SND.play('key'); if (ui.dlg){ ui.dlg.i++; dlgStep(); } break;
     case 'begin': renderTask(); break;
+    case 'timer': st.timer = !st.timer; save(); b.textContent = st.timer ? 'Timer on · tap to turn off' : 'Timer off · tap to turn on'; b.classList.toggle('go', st.timer); b.parentElement.querySelector('.devh span:last-child').textContent = st.timer ? 'ON' : 'OFF'; break;
     case 'report': renderReport(); break;
+    case 'badges': renderBadges(); break;
     case 'sheet': document.getElementById('sheet').hidden = false; break;
     case 'sheet-close': document.getElementById('sheet').hidden = true; break;
+    case 'mute': st.sound = !st.sound; save(); hud(); if (st.sound) SND.play('ok'); break;
     case 'hint': {
       const h = b.dataset.h, cost = h === 'rule' ? 5 : 10; if (st.energy < cost) break;
-      st.energy -= cost; ui.hints[h] = true; save(); hud(); drawHints(); break;
+      st.energy -= cost; ui.hints[h] = true; if (st.cur) st.cur.hints = (st.cur.hints || 0) + 1; save(); hud(); drawHints(); SND.play('zip'); break;
     }
-    case 'unit': ui.unit = b.dataset.u; view.querySelectorAll('[data-act="unit"]').forEach(x => x.setAttribute('aria-pressed', x.dataset.u === ui.unit)); break;
-    case 'sgn': ui.neg = !ui.neg; b.textContent = ui.neg ? '−' : '+'; break;
-    case 'submit': snapInputs(); submit(); break;
-    case 'pickc': pickChoice(b.dataset.v); break;
+    case 'key': keyIn(b.dataset.k); break;
+    case 'unit':
+      ui.kp.unit = b.dataset.u; SND.play('key');
+      view.querySelectorAll('[data-act="unit"]').forEach(x => x.setAttribute('aria-pressed', x.dataset.u === ui.kp.unit));
+      { const u = view.querySelector('.lcd .u'); if (u) u.textContent = ui.kp.unit; } break;
+    case 'nv': { const i = +b.dataset.i; ui.nv[i] = Math.max(0, Math.min(20, ui.nv[i] + +b.dataset.d)); SND.play('key'); drawBody(); break; }
+    case 'submit': submit(); break;
+    case 'pickc': {
+      if (ui.done || ui.busy) break;
+      SND.play('tap');
+      if (ui.t.type === 'classify' && !reduced()){
+        const blip = document.getElementById('blip'); if (blip){
+          ui.busy = true; const a = blip.getBoundingClientRect(), bb = b.getBoundingClientRect();
+          const an = blip.animate([{transform:'none', opacity:1}, {transform:`translate(${bb.left + bb.width / 2 - a.left - a.width / 2}px,${bb.top - a.top}px) scale(.3)`, opacity:.2}], {duration:320, easing:'steps(6)', fill:'forwards'});
+          SND.play('zip'); an.onfinish = () => { ui.busy = false; pickChoice(b.dataset.v); }; break;
+        }
+      }
+      pickChoice(b.dataset.v); break;
+    }
     case 'next': nextTask(); break;
     case 'coef': {
-      const i = +b.dataset.i, d = +b.dataset.d; ui.coefs[i] = Math.min(12, Math.max(1, ui.coefs[i] + d));
-      const t = ui.t; const L = t.type === 'balance' ? t : LIM[t.p.r];
-      document.getElementById('balbox').innerHTML = balanceHTML(L.L, L.R, ui.coefs, false); break;
+      const i = +b.dataset.i; ui.coefs[i] = Math.min(12, Math.max(1, ui.coefs[i] + +b.dataset.d)); SND.play('key');
+      const t = ui.t, L = t.type === 'balance' ? t : LIM[t.p.r];
+      const before = balState(L.L, L.R, ui.coefs).bal;
+      document.getElementById('balbox').innerHTML = reactorHTML(L.L, L.R, ui.coefs, false);
+      if (before) SND.play('pop');
+      break;
     }
     case 'checkbal': {
       const L = LIM[ui.t.p.r], s = balState(L.L, L.R, ui.coefs), e1 = document.getElementById('err1');
-      if (s.bal && s.lowest){ ui.phase = 'answer'; drawBody(); break; }
-      if (!ui.flags.bal){ ui.flags.bal = true; st.hull -= 6; if (st.hull <= 0){ st.patches++; st.hull = 35; } save(); hud(); }
-      e1.textContent = !s.bal ? 'Not balanced yet: fix the red rows. (−6 hull)' : 'Balanced, but not in lowest whole numbers. (−6 hull)';
+      if (s.bal && s.lowest){ ui.phase = 'answer'; SND.play('ok'); const o = mainScene(); if (o) o.live = false; drawBody(); break; }
+      if (!ui.flags.bal){ ui.flags.bal = true; st.hull -= 6; if (st.hull <= 0){ st.patches++; st.hull = 35; } save(); hud(); shake(); flash('red'); }
+      SND.play('jam');
+      e1.textContent = !s.bal ? 'Not balanced yet: fix the ≠ rows. (−6 hull)' : 'Balanced, but not in lowest whole numbers. (−6 hull)';
       break;
     }
-    case 'chipv': { const v = b.dataset.v; ui.sel = ui.sel.includes(v) ? ui.sel.filter(x => x !== v) : ui.sel.concat(v); b.setAttribute('aria-pressed', ui.sel.includes(v)); break; }
-    case 'lockchips': {
-      if (!ui.sel.length){ document.getElementById('err1').textContent = 'Pick at least one value.'; break; }
+    case 'cart': { const v = b.dataset.v; ui.sel = ui.sel.includes(v) ? ui.sel.filter(x => x !== v) : ui.sel.concat(v); SND.play('key'); drawBody(); break; }
+    case 'lockcarts': {
+      if (!ui.sel.length){ document.getElementById('err1').textContent = 'Load at least one cartridge.'; SND.play('jam'); break; }
       const need = ui.b.need, good = need.length === ui.sel.length && need.every(v => ui.sel.includes(v));
-      if (!good){ ui.flags.sel = true; st.hull -= 6; if (st.hull <= 0){ st.patches++; st.hull = 35; } save(); hud(); }
+      if (!good){ ui.flags.sel = true; st.hull -= 6; if (st.hull <= 0){ st.patches++; st.hull = 35; } save(); hud(); SND.play('jam'); shake(); flash('red'); say('Jammed. Green cartridges are the ones that belong. Use those for step 2.', 'worried'); }
+      else { SND.play('ok'); say('Cartridges accepted. Now do the math on paper.', 'happy'); }
       ui.phase = 'answer'; drawBody();
-      document.getElementById('err1').textContent = good ? 'Correct values. Now calculate.' : 'Not quite (−6 hull). Green values are the ones you need. Use those for step 2.';
+      document.getElementById('err1').textContent = good ? 'Correct cartridges.' : 'Wrong set (−6 hull). Green = needed.';
       break;
     }
     case 'nsplit': {
-      const side = b.dataset.side, i = +b.dataset.i, x = ui.net[side][i];
-      if (x.st === 's'){ ui.net.solidTap = true; b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); document.getElementById('err').textContent = 'Solids stay together. Never split a (s).'; break; }
-      x.split = true; drawBody(); break;
-    }
-    case 'nstrike': { const k = b.dataset.k; ui.net.struck[k] = !ui.net.struck[k]; b.classList.toggle('struck', ui.net.struck[k]); break; }
-    case 'rpick': {
-      const X = ui.rx, side = b.dataset.side, i = +b.dataset.i;
-      if (side === 'R'){ X.prodTap = true; b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); document.getElementById('err').textContent = 'That\'s a product. Pick from the reactants only.'; break; }
-      if (X.ox === null) X.ox = i; else if (X.red === null && i !== X.ox) X.red = i;
+      const x = ui.net[b.dataset.side][+b.dataset.i];
+      if (x.st === 's'){ ui.net.solidTap = true; SND.play('jam'); b.classList.remove('shk'); void b.offsetWidth; b.classList.add('shk'); document.getElementById('err').textContent = 'Solids stay together. Never split a (s).'; break; }
+      x.split = true; SND.play('pop');
+      const r = b.getBoundingClientRect(); fx.burst(r.left + r.width / 2, r.top + r.height / 2, 12, [C.cu, C.white]);
       drawBody(); break;
+    }
+    case 'nstrike': { const k = b.dataset.k; ui.net.struck[k] = !ui.net.struck[k]; b.classList.toggle('vent', ui.net.struck[k]); SND.play(ui.net.struck[k] ? 'zip' : 'key'); break; }
+    case 'rpick': {
+      const X = ui.rx; if (X.dragged){ X.dragged = false; break; }
+      if (b.dataset.side === 'R'){ X.prodTap = true; SND.play('jam'); b.classList.remove('shk'); void b.offsetWidth; b.classList.add('shk'); document.getElementById('err').textContent = 'That\'s a product. Pick from the reactants only.'; break; }
+      const i = +b.dataset.i; if (X.ox === null) X.ox = i; else if (X.red === null && i !== X.ox) X.red = i;
+      SND.play('key'); drawBody(); break;
     }
     case 'rreset': ui.rx.ox = null; ui.rx.red = null; drawBody(); break;
   }
 });
 document.getElementById('sheet').addEventListener('click', e => { if (e.target.id === 'sheet') e.currentTarget.hidden = true; });
-view.addEventListener('keydown', e => {
-  if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
-  const s = view.querySelector('[data-act="submit"]:not([disabled])'); if (s){ e.preventDefault(); s.click(); }
-});
 
 /* Data sheet */
 const PT = [['H','1.008'],['C','12.01'],['N','14.01'],['O','16.00'],['Na','22.99'],['Mg','24.31'],['Al','26.98'],['S','32.07'],['Cl','35.45'],['K','39.10'],['Ca','40.08'],['Fe','55.85'],['Ni','58.69'],['Cu','63.55'],['Zn','65.38'],['Br','79.90'],['Ag','107.87'],['Sn','118.71'],['I','126.90'],['Ba','137.33'],['Pb','207.2']];
 document.getElementById('ptable').innerHTML = PT.map(([s, m]) => `<div class="pc"><b>${s}</b><span>${m}</span></div>`).join('');
 
 window.__avogadro = { CALC, toSci, sfOf, parseF, balState, ORIG, EXTRA, variantOf };
+stars.resize(); fx.resize(); requestAnimationFrame(loop);
 renderTitle();
 })();
 </script>

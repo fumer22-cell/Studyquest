@@ -9,5 +9,12 @@ You repair a stranded research station by solving the guide's 34 problems.
 - A final systems check re-tests every topic, twice for topics you missed.
 - "Remix run" replays everything with new numbers.
 
-Open `index.html` in any browser. `src/game.html` is the same page without the
-document wrapper (used for publishing as a Claude artifact).
+Pixel-art presentation: a playable station map, animated rooms, device-style
+controls for each topic (IV pump keypad, reactor dials, ion tank, battery wiring,
+radar, label maker), MOLLY the station AI, combos, badges, ranks, chiptune sound
+effects, and an escape sequence with an optional exam timer.
+
+Open `index.html` in any browser. Source lives in `src/parts/`:
+`a-shell.html` (styles + page shell), `b-data.js` (study-guide problems, generators,
+grading data), `c-game.js` (rendering, sound, game logic). Run `./build.sh` to
+regenerate `src/game.html` (artifact fragment) and `index.html`.
