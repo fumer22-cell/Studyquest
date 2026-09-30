@@ -285,7 +285,7 @@ const CLASSES = [['comb','Combination'],['decomp','Decomposition'],['single','Si
 const UNITS = ['g','mg','mol','molecules','atoms','g/mol','amu'];
 
 /* ---------- The study guide, as station tasks ---------- */
-const MODS = [
+let MODS = [
   { id:'med', code:'Mb', name:'Med Bay', topics:['conv'],
     intro:['Emergency lights only. You\'re in the med bay.', 'The IV pump, the water log, and the toxin sensor all lost their unit conversions. Each one reads a different unit than the number I have.', 'Everything in this room runs on one path: grams ↔ moles ↔ particles.'],
     outro:['Med bay is stable.', 'If something went wrong here, it was probably direction on the path. Divide by molar mass to get to moles. Multiply by 6.022×10^23 to get to particles.'],
@@ -369,7 +369,7 @@ const MODS = [
     intro:['Bad news. The hull is breaking up. We have to jump now.', 'The jump drive charges on correct answers. I\'m sending every system through once more with new numbers, and twice for anything that gave you trouble.', 'Treat this like the real quiz: paper, calculator, no hints if you can help it.'],
     outro:[], tasks:[] }
 ];
-const ORIG = MODS.flatMap(m => m.tasks);
+let ORIG = MODS.flatMap(m => m.tasks);
 
 /* ---------- Extra problems for reroutes, remix runs, and the final check ---------- */
 const EXTRA = [

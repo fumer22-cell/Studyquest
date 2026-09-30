@@ -4,7 +4,7 @@
    ======================================================================== */
 const KEY = 'avogadro-station-v1';
 function fresh(){ return { v:2, remix:false, hull:100, energy:20, patches:0, done:[], stats:{}, score:{n:0, ok:0}, missed:{}, cur:null, finished:false,
-  xp:0, streak:0, best:0, calcStreak:0, badges:[], sound:true, timer:false, wrongs:[], parked:null }; }
+  xp:0, streak:0, best:0, calcStreak:0, badges:[], sound:true, timer:false, wrongs:[], parked:null, camp:'station', saved:{} }; }
 function load(){ try { const s = localStorage.getItem(KEY); return s ? Object.assign(fresh(), JSON.parse(s)) : null; } catch (e) { return null; } }
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
 let st = load() || fresh();
@@ -205,7 +205,8 @@ const DEV = {
   }
 };
 function drawRoom(ctx, id, t, o){
-  const k = K(ctx), W = 80, H = 40;
+  const k = K(ctx), W = 80, H = 40, stone = STONE.has(id);
+  if (stone) stoneBase(k, ctx, t, o, id); else {
   k.r(0, 0, W, H, C.wall);
   for (let x = 0; x < W; x += 16) k.r(x, 4, 1, 30, C.seam);
   k.r(0, 12, W, 1, C.seam);
@@ -213,11 +214,12 @@ function drawRoom(ctx, id, t, o){
   const lightOn = o.lit > 0 && !(o.lit < 1 && Math.random() < .12);
   [16, 58].forEach(x => { k.r(x, 3, 8, 1, lightOn ? '#fff3b0' : C.seam); if (lightOn){ ctx.fillStyle = 'rgba(255,243,176,.05)'; for (let i = 0; i < 6; i++) ctx.fillRect(x - i, 4 + i * 4, 8 + 2 * i, 4); } });
   k.r(0, 34, W, 6, C.floor); k.r(0, 34, W, 1, C.steelD); for (let x = 0; x < W; x += 4) k.r(x, 37, 2, 1, C.floorD);
+  }
   DEV[id](k, t, o);
   const dark = .65 * (1 - Math.min(1, o.lit));
   if (dark > 0){ ctx.fillStyle = `rgba(5,6,16,${dark})`; ctx.fillRect(0, 0, W, H); }
   if (o.alarm){ const on = Math.floor(t * 3) % 2 === 0; k.r(2, 1, 3, 2, on ? C.sr : C.srD); k.r(75, 1, 3, 2, on ? C.srD : C.sr); if (on){ ctx.fillStyle = 'rgba(228,59,68,.12)'; ctx.fillRect(0, 0, W, H); } }
-  if (o.lit < 1 && !o.live && Math.random() < .35){ const x = (o.sx || 40) + Math.round(Math.random() * 16 - 8), y = (o.sy || 20) + Math.round(Math.random() * 12 - 6); k.p(x, y, C.white); k.p(x + 1, y, C.na); k.p(x - 1, y + 1, C.orange); k.p(x, y - 1, C.yel); }
+  if (o.lit < 1 && !o.live && Math.random() < .35){ const x = (o.sx || 40) + Math.round(Math.random() * 16 - 8), y = (o.sy || 20) + Math.round(Math.random() * 12 - 6); const sc = stone ? ['#eef0f8', '#c8a2ff', '#b55088', '#2ce8f5'] : [C.white, C.na, C.orange, C.yel]; k.p(x, y, sc[0]); k.p(x + 1, y, sc[1]); k.p(x - 1, y + 1, sc[2]); k.p(x, y - 1, sc[3]); }
   if (o.failUntil && t < o.failUntil){ ctx.fillStyle = 'rgba(228,59,68,.28)'; ctx.fillRect(0, 0, W, H); for (let i = 0; i < 10; i++) k.p(8 + Math.random() * 64, 6 + Math.random() * 26, [C.white, C.na, C.orange][i % 3]); }
 }
 
@@ -338,8 +340,9 @@ function mount(){
     const o = c._o = { lit:+(c.dataset.lit || 0), alarm:c.dataset.alarm === '1', charge:c.dataset.charge != null ? +c.dataset.charge : null };
     const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawRoom(ctx, c.dataset.room, t, o)});
   });
-  view.querySelectorAll('canvas[data-molly]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawMolly(ctx, t)}); });
+  view.querySelectorAll('canvas[data-molly]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => (CAMP.id === 'tower' ? drawOwl : drawMolly)(ctx, t)}); });
   view.querySelectorAll('canvas[data-art="ship"]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawShip(ctx, t, +c.dataset.lit)}); });
+  view.querySelectorAll('canvas[data-art="tower"]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawTower(ctx, t, +c.dataset.lit)}); });
   view.querySelectorAll('canvas[data-art="tail"]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawTail(ctx, t, c.dataset.on === '1')}); });
   view.querySelectorAll('canvas[data-medal]').forEach(c => drawMedal(c.getContext('2d'), c.dataset.medal, c.dataset.lock === '1'));
   fitScenes();
@@ -364,7 +367,7 @@ function toast(title, text, medal){
 function say(text, expr = 'neutral'){
   const el = document.getElementById('say'); if (!el) return;
   molly.expr = expr; clearInterval(sayTimer);
-  el.innerHTML = `<span class="who">MOLLY</span>${F(text)}`;
+  el.innerHTML = `<span class="who">${CAMP.pal}</span>${F(text)}`;
   if (reduced()) return;
   const nodes = []; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n; w.nextNode();
   while ((n = w.nextNode())){ nodes.push([n, n.nodeValue]); n.nodeValue = ''; }
@@ -382,9 +385,7 @@ function say(text, expr = 'neutral'){
 const talkHTML = () => `<div class="talk"><canvas data-molly class="pix" width="18" height="16" aria-hidden="true"></canvas><div class="say" id="say" aria-live="polite"></div></div>`;
 const ruleCard = tp => `<div class="rule"><span class="lab">Manual · ${F(TOPICS[tp].name)}</span>${TOPICS[tp].rule.startsWith('<') ? F(TOPICS[tp].rule) : `<p>${F(TOPICS[tp].rule)}</p>`}</div>`;
 const unlocked = i => i === 0 || st.done.includes(MODS[i - 1].id);
-const REPAIR = { id:'bay', code:'Rp', name:'Repair Bay', topics:[], repair:true, tasks:[] };
-const modOf = i => i === -1 ? REPAIR : MODS[i];
-const REPAIRL = ['This one cracked the hull before. Same numbers. Weld it shut.', 'Old crack, same problem. Take your time on paper.', 'You missed this one earlier. Show it who\'s boss.'];
+const modOf = i => i === -1 ? CAMP.repair : MODS[i];
 function addWrong(t){
   const w = JSON.parse(JSON.stringify(t)); w.reroute = false; w.depth = 0; delete w.story;
   if (!st.wrongs.some(x => x.id === w.id)) st.wrongs.push(w);
@@ -404,7 +405,8 @@ const BADGES = [
   {id:'comeback', name:'Comeback', d:'Fix a rerouted problem after missing it.', c:C.pale},
   {id:'jump', name:'Jump Complete', d:'Escape the station.', c:C.yel},
   {id:'iron', name:'Iron Hull', d:'Escape without an emergency patch.', c:C.steel},
-  {id:'welder', name:'Hull Welder', d:'Repair the hull by re-solving a problem you missed.', c:C.orange}
+  {id:'welder', name:'Hull Welder', d:'Restore your hull or ward by re-solving a problem you missed.', c:C.orange},
+  {id:'beacon', name:'Beacon Lit', d:'Relight the beacon atop the Valence Spire.', c:C.cu}
 ];
 function award(ids){
   let k = 0;
@@ -420,6 +422,7 @@ function hud(){
   segs.innerHTML = Array.from({length:10}, (_, i) => `<i class="seg ${i < on ? 'on' : ''}"></i>`).join('');
   segs.classList.toggle('low', h < 35);
   document.getElementById('enev').textContent = st.energy;
+  document.querySelector('.hullw .lab').textContent = W().Hull; document.querySelector('.enw .lab').textContent = W().nrg;
   const cb = document.getElementById('combo'); cb.hidden = st.streak < 2; cb.textContent = 'x' + st.streak;
   const ri = rankIdx(st.xp); document.getElementById('rankname').textContent = RANKS[ri][1];
   drawRankIco(document.getElementById('rankico').getContext('2d'), ri);
@@ -431,17 +434,22 @@ function hud(){
    ======================================================================== */
 const hasRun = () => st.done.length > 0 || !!st.cur;
 function renderTitle(){
-  const has = hasRun();
+  const card = id => {
+    const c = CAMPS[id], sm = campSummary(id), k = ui.confirm;
+    return `<div class="win camp">
+      <canvas data-art="${c.art}" data-lit="${sm.done / sm.total}" class="pix campart" width="48" height="64" aria-hidden="true"></canvas>
+      <div class="campinfo"><h2 class="camph">${c.title}</h2><p class="dim">${c.tag}</p><span class="lab">${sm.done}/${sm.total} ${id === 'tower' ? 'floors' : 'systems'} ${c.w.online}${sm.finished ? ' · complete' : ''}</span>
+      <div class="row">
+        <button class="pb go" data-act="camp" data-c="${id}">${sm.run ? '▶ Continue' : '▶ Start'}</button>
+        ${sm.run ? `<button class="pb sm" data-act="new" data-c="${id}">${k === 'new:' + id ? 'Tap again to erase' : 'New game'}</button>` : ''}
+        <button class="pb sm" data-act="remix" data-c="${id}">${k === 'remix:' + id ? 'Tap again to remix' : 'Remix'}</button>
+      </div></div></div>`;
+  };
   show(`<section class="title">
-    <canvas data-art="ship" data-lit="${st.done.length / MODS.length}" class="pix shipart" width="48" height="64" aria-hidden="true"></canvas>
-    <h1 class="logo"><span class="l1">AVOGADRO</span><span class="l2">STATION</span></h1>
-    <p class="tag">A chemistry rescue mission</p>
-    <div class="stack">
-      ${has ? `<button class="pb go big" data-act="continue">▶ Continue</button>` : `<button class="pb go big blink" data-act="new">▶ Press start</button>`}
-      ${has ? `<button class="pb" data-act="new">${ui.confirm === 'new' ? 'Tap again to erase' : 'New game'}</button>` : ''}
-      <button class="pb" data-act="remix">${ui.confirm === 'remix' ? 'Tap again to remix' : 'Remix: new numbers'}</button>
-    </div>
-    <ul class="kit"><li>Paper + pencil</li><li>Calculator</li><li>~45 min</li></ul>
+    <h1 class="logo"><span class="l1">CHEM</span><span class="l2">QUESTS</span></h1>
+    <p class="tag">Pick a campaign</p>
+    <div class="camps">${card('station')}${card('tower')}</div>
+    <ul class="kit"><li>Paper + pencil</li><li>Calculator</li><li>~45 min each</li></ul>
   </section>`);
 }
 function dialog(lines, after){
@@ -456,21 +464,14 @@ function dlgStep(){
 }
 function renderBoot(){
   show(`<section class="scr">
-    <div class="scene"><canvas data-room="med" data-lit="0" data-alarm="1" class="pix" width="80" height="40" aria-hidden="true"></canvas><span class="stag">REBOOTING…</span></div>
+    <div class="scene"><canvas data-room="${CAMP.bootRoom}" data-lit="0" data-alarm="1" class="pix" width="80" height="40" aria-hidden="true"></canvas><span class="stag">${CAMP.title.toUpperCase()}</span></div>
     ${talkHTML()}
     <div id="dlgbtns"></div>
   </section>`);
   SND.play('alarm');
-  dialog(['Oh good, you\'re awake. I\'m MOLLY, the station\'s Molecular Logistics Layer.',
-    'A meteor scrambled my calculation core. I can still read sensors, but every number I produce needs checking by someone with a pencil. That\'s you.',
-    'Long calculations are worked by hand, on paper. You punch the final answer into each device in scientific notation, with correct sig figs and units. I grade like your teacher.',
-    'Wrong answers cost hull, and I\'ll hand you the same kind of problem again with new numbers. Streaks earn bonus energy. Hints cost energy.',
-    'Ten systems are down. Fix them in order, then we jump home from the bridge.'],
-    `<button class="pb go big" data-act="map">Open station map ▶</button>`);
-  ui.dlg.exprs = ['happy', 'worried', 'neutral', 'smug', 'neutral'];
+  ui.dlg = { lines:CAMP.boot, i:0, after:`<button class="pb go big" data-act="map">Open ${W().map.toLowerCase()} ▶</button>`, exprs:CAMP.bootExpr };
   dlgStep();
 }
-const LAYOUT = [['fin'], ['med', 'air'], ['fab', 'rx'], ['sen', 'h2o'], ['pow', 'crg'], ['eng']];
 function renderMap(){
   const n = st.done.length;
   const cell = id => {
@@ -479,29 +480,29 @@ function renderMap(){
     const lit = on ? 1 : un ? .3 : 0;
     const mid = (st.cur && st.cur.m === i) || (st.parked && st.parked.m === i);
     const stt = on ? 'online' : un ? (mid ? 'in repair' : 'broken') : 'sealed';
-    return `<button class="room ${cls} ${m.final || id === 'eng' ? 'span' : ''}" data-act="mod" data-i="${i}" aria-label="${m.name}: ${stt}">
+    return `<button class="room ${cls} ${m.final || id === 'eng' || CAMP.shape === 'tower' ? 'span' : ''}" data-act="mod" data-i="${i}" aria-label="${m.name}: ${stt}">
       <canvas data-room="${id}" data-lit="${lit}" ${m.final && !on ? 'data-alarm="1"' : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>
       <span class="rlab"><i class="led"></i>${i + 1}. ${m.name} · ${stt}</span></button>`;
   };
   show(`<section class="scr">
-    <div class="maptop"><h1 class="h1">Station map</h1><span class="lab">${n}/${MODS.length} online${st.remix ? ' · remix' : ''}</span></div>
+    <div class="maptop"><h1 class="h1">${W().map}</h1><span class="lab">${n}/${MODS.length} ${W().online}${st.remix ? ' · remix' : ''}</span></div>
     ${talkHTML()}
-    <div class="ship">
+    <div class="ship ${CAMP.shape}">
       <div class="nose"></div>
       <div class="hullbox"><div class="trunk"><i style="height:${Math.round(100 * n / MODS.length)}%"></i></div>
-        <div class="rooms">${LAYOUT.flat().map(cell).join('')}</div></div>
-      <div class="tail"><canvas data-art="tail" data-on="${st.done.includes('eng') ? 1 : 0}" class="pix" width="80" height="16" aria-hidden="true"></canvas></div>
+        <div class="rooms">${CAMP.layout.flat().map(cell).join('')}</div></div>
+      ${CAMP.shape === 'tower' ? '<div class="ground"></div>' : `<div class="tail"><canvas data-art="tail" data-on="${st.done.includes('eng') ? 1 : 0}" class="pix" width="80" height="16" aria-hidden="true"></canvas></div>`}
     </div>
-    <button class="room bayroom ${st.wrongs.length ? 'st-next' : 'st-online'}" data-act="repair" aria-label="Repair bay: ${st.wrongs.length} cracks">
-      <canvas data-room="bay" data-lit="${Math.max(.2, Math.min(1, st.hull / 100))}" ${st.hull < 35 ? 'data-alarm="1"' : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>
-      <span class="rlab"><i class="led"></i>Repair bay · hull ${Math.max(0, st.hull)}% · ${st.wrongs.length ? st.wrongs.length + ' crack' + (st.wrongs.length > 1 ? 's' : '') + ' to weld' : 'no cracks'}</span></button>
+    <button class="room bayroom ${st.wrongs.length ? 'st-next' : 'st-online'}" data-act="repair" aria-label="${W().Bay}: ${st.wrongs.length} ${W().crack}s">
+      <canvas data-room="${CAMP.repair.id}" data-lit="${Math.max(.2, Math.min(1, st.hull / 100))}" ${st.hull < 35 ? 'data-alarm="1"' : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>
+      <span class="rlab"><i class="led"></i>${W().Bay} · ${W().hull} ${Math.max(0, st.hull)}% · ${st.wrongs.length ? st.wrongs.length + ' ' + W().crack + (st.wrongs.length > 1 ? 's' : '') + ' to ' + W().weld : 'no ' + W().crack + 's'}</span></button>
     <div class="row"><button class="pb sm" data-act="badges">Badges ${st.badges.length}/${BADGES.length}</button><button class="pb sm" data-act="report">Study report</button><button class="pb sm" data-act="title">Title</button></div>
   </section>`);
   const next = MODS.findIndex((m, i) => unlocked(i) && !st.done.includes(m.id));
   if (next < 0) say('Every system is online. Replay any room to practice.', 'happy');
-  else if (st.hull < 60 && st.wrongs.length) say(`Hull at ${Math.max(0, st.hull)}%. The repair bay has ${st.wrongs.length} crack${st.wrongs.length > 1 ? 's' : ''} from problems you missed. Each one you re-solve restores 15 hull.`, 'worried');
-  else if (st.cur && st.cur.m !== -1) say(`${MODS[st.cur.m].name} is mid-repair. Tap it to pick up where you left off.`, 'neutral');
-  else say(next === 0 ? 'Start with the med bay. It\'s the flashing one.' : `Next up: the ${MODS[next].name}. Tap it.`, next === MODS.length - 1 ? 'worried' : 'neutral');
+  else if (st.hull < 60 && st.wrongs.length) say(`${W().Hull} at ${Math.max(0, st.hull)}%. The ${W().bay} has ${st.wrongs.length} ${W().crack}${st.wrongs.length > 1 ? 's' : ''} from problems you missed. Each one you re-solve restores 15 ${W().hull}.`, 'worried');
+  else if (st.cur && st.cur.m !== -1) say(`The ${MODS[st.cur.m].name} is ${W().mid}. Tap it to pick up where you left off.`, 'neutral');
+  else say(next === 0 ? CAMP.firstLine : `Next up: the ${MODS[next].name}. Tap it.`, next === MODS.length - 1 ? 'worried' : 'neutral');
 }
 function enterRoom(i, el){
   SND.play('zip');
@@ -512,21 +513,21 @@ const sceneHTML = (id, lit, extra = '', alarm = false, charge = null) =>
   `<div class="scene"><canvas data-room="${id}" data-lit="${lit}" ${alarm ? 'data-alarm="1"' : ''} ${charge != null ? `data-charge="${charge}"` : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>${extra}</div>`;
 function startRepair(){
   if (st.cur && st.cur.m === -1){ renderTask(); return; }
-  if (!st.wrongs.length){ SND.play('jam'); say(st.hull < 100 ? 'No cracks to weld yet. Every problem you miss gets added here.' : 'Hull is solid and the repair bay is empty. Nice.', 'happy'); return; }
+  if (!st.wrongs.length){ SND.play('jam'); say(st.hull < 100 ? `No ${W().crack}s to ${W().weld} yet. Every problem you miss gets added to the ${W().bay}.` : `Your ${W().hull} is solid and the ${W().bay} is empty. Nice.`, 'happy'); return; }
   if (st.cur) st.parked = st.cur;
   const queue = st.wrongs.slice(0, 5).map(w => JSON.parse(JSON.stringify(w)));
   st.cur = { m:-1, queue, pos:0, first:0, rer:0, ok:0, hints:0 };
   save();
   show(`<section class="scr">
-    ${sceneHTML('bay', Math.max(.15, Math.min(.9, st.hull / 100)), `<span class="stag">REPAIR BAY · HULL ${Math.max(0, st.hull)}%</span>`, st.hull < 35)}
-    <h1 class="h1">Repair bay</h1>
+    ${sceneHTML(CAMP.repair.id, Math.max(.15, Math.min(.9, st.hull / 100)), `<span class="stag">${W().Bay.toUpperCase()} · ${W().Hull.toUpperCase()} ${Math.max(0, st.hull)}%</span>`, st.hull < 35)}
+    <h1 class="h1">${W().Bay}</h1>
     ${talkHTML()}
     <div id="dlgbtns"></div>
-    <div class="stats"><div class="stat"><span class="lab">Hull</span><b>${Math.max(0, st.hull)}%</b></div><div class="stat"><span class="lab">Cracks</span><b>${st.wrongs.length}</b></div><div class="stat"><span class="lab">Per weld</span><b>+15</b></div></div>
-    <button class="pb go big" data-act="begin">Start welding ▶ (${queue.length})</button>
+    <div class="stats"><div class="stat"><span class="lab">${W().Hull}</span><b>${Math.max(0, st.hull)}%</b></div><div class="stat"><span class="lab">${W().crack}s</span><b>${st.wrongs.length}</b></div><div class="stat"><span class="lab">${W().perWeld}</span><b>+15</b></div></div>
+    <button class="pb go big" data-act="begin">${W().startWeld} ▶ (${queue.length})</button>
   </section>`);
   SND.play('zip');
-  const lines = ['Every problem you missed left a crack in the hull.', 'You get the exact same problem again, same numbers. Solve it and the patch welds: +15 hull.', 'Miss it and the crack stays in the queue. No extra damage in here, so take your time.'];
+  const lines = CAMP.repairIntro;
   ui.dlg = { lines, i:0, after:'', exprs:['worried', 'neutral', 'happy'] }; dlgStep();
 }
 function startModule(i){
@@ -537,21 +538,21 @@ function startModule(i){
   st.cur = { m:i, queue, pos:0, first:0, rer:0, ok:0, hints:0 };
   save();
   show(`<section class="scr">
-    ${sceneHTML(m.id, st.done.includes(m.id) ? 1 : .15, `<span class="stag">SYSTEM ${i + 1} · ${m.name.toUpperCase()}</span>`, m.final)}
+    ${sceneHTML(m.id, st.done.includes(m.id) ? 1 : .15, `<span class="stag">${W().unit.toUpperCase()} ${i + 1} · ${m.name.toUpperCase()}</span>`, m.final)}
     <h1 class="h1">${m.name}</h1>
     ${talkHTML()}
     <div id="dlgbtns"></div>
     ${m.final ? `<div class="win dev"><div class="devh"><span>Exam timer</span><span>${st.timer ? 'ON' : 'OFF'}</span></div>
       <p class="dim" style="margin:0;font-size:16px">Quiz pressure: 3:00 per calculation, 0:45 for everything else. Running out of time counts as a miss.</p>
       <button class="pb ${st.timer ? 'go' : ''}" data-act="timer">${st.timer ? 'Timer on · tap to turn off' : 'Timer off · tap to turn on'}</button></div>` : m.topics.map(ruleCard).join('')}
-    <button class="pb go big" data-act="begin">${m.final ? 'Start the jump ▶' : 'Start repairs ▶'} (${queue.length})</button>
+    <button class="pb go big" data-act="begin">${m.final ? W().go + ' ▶' : W().start + ' ▶'} (${queue.length})</button>
   </section>`);
   if (m.final) SND.play('alarm');
   ui.dlg = { lines:m.intro, i:0, after:'', exprs:m.intro.map((_, j) => m.final ? 'alarm' : j === 0 ? 'neutral' : 'neutral') };
   dlgStep();
 }
 function buildFinal(){
-  const order = ['conv','amu','mm','bal','atoms','cls','net','redox','name','stoich'];
+  const order = [...new Set(MODS.flatMap(m => m.topics))];
   const q = [];
   for (const tp of order){
     const tmpl = shuffle(ORIG.filter(t => t.topic === tp)); const n = st.missed[tp] ? 2 : 1;
@@ -564,8 +565,8 @@ function buildFinal(){
    TASK SCREEN
    ======================================================================== */
 const curTask = () => st.cur.queue[st.cur.pos];
-const DEVNAME = { bay:'Welding rig', med:'IV pump · dose input', air:'Scrubber console', fab:'Fabricator · print job', rx:'Reactor controls', sen:'Radar', h2o:'Tank controls', pow:'Battery bank', crg:'Label maker', eng:'Fuel console', fin:'Jump computer' };
-const VERB = { bay:'Weld patch', med:'Start pump', air:'Calibrate', fab:'Print', rx:'Engage core', h2o:'Flush tank', pow:'Transfer e⁻', crg:'Stamp label', eng:'Fire thrusters', fin:'Charge drive' };
+const DEVNAME = { gate:'Gate runes', lib:'Tome', lab:'Alembic', obs:'Star chart', scr:'Quill & scroll', apo:'Jar labels', vault:'Balance scale', mine:'Crystal counter', forge:'Forge ledger', circ:'Summoning circle', top:'Beacon rune', shrine:'Mending font', bay:'Welding rig', med:'IV pump · dose input', air:'Scrubber console', fab:'Fabricator · print job', rx:'Reactor controls', sen:'Radar', h2o:'Tank controls', pow:'Battery bank', crg:'Label maker', eng:'Fuel console', fin:'Jump computer' };
+const VERB = { gate:'Speak rune', lib:'Turn page', lab:'Distill', obs:'Align', scr:'Inscribe', apo:'Label jar', vault:'Weigh', mine:'Count', forge:'Strike', circ:'Summon', top:'Ignite', shrine:'Mend', bay:'Weld patch', med:'Start pump', air:'Calibrate', fab:'Print', rx:'Engage core', h2o:'Flush tank', pow:'Transfer e⁻', crg:'Stamp label', eng:'Fire thrusters', fin:'Charge drive' };
 function renderTask(){
   const c = st.cur, t = curTask(), m = modOf(c.m);
   ui = { t, done:false, hints:{}, confirm:null };
@@ -577,19 +578,19 @@ function renderTask(){
     ui.sel = []; ui.flags = {};
     if (t.gen === 'limit'){ const L = LIM[t.p.r]; ui.coefs = L.L.concat(L.R).map(() => 1); }
   }
-  if (t.type === 'calc' || t.type === 'numunit') ui.kp = { m:'', e:'', neg:false, f:'m', unit:null };
+  if (t.type === 'calc' || t.type === 'numunit' || t.type === 'numval') ui.kp = { m:'', e:'', neg:false, f:'m', unit:t.type === 'numval' ? t.unit : null };
   if (t.type === 'balance') ui.coefs = t.L.concat(t.R).map(() => 1);
   if (t.type === 'nums') ui.nv = [0, 0];
   if (t.type === 'net') ui.net = { L:t.L.map(x => ({...x, split:false})), R:t.R.map(x => ({...x, split:false})), struck:{}, solidTap:false };
   if (t.type === 'redox') ui.rx = { ox:null, red:null, prodTap:false };
   const chips = [];
-  if (t.n) chips.push(`<span class="chip">Guide #${t.n}</span>`);
-  if (m.repair) chips.push(`<span class="chip re">Hull repair</span>`);
+  if (t.n) chips.push(`<span class="chip">${CAMP.id === 'tower' ? 'Test' : 'Guide'} #${t.n}</span>`);
+  if (m.repair) chips.push(`<span class="chip re">${W().Bay}</span>`);
   else if (t.reroute) chips.push(`<span class="chip re">Rerouted</span>`); else if (!t.n) chips.push(`<span class="chip">New numbers</span>`);
   const lit = m.repair ? Math.max(.15, Math.min(.9, st.hull / 100)) : m.final ? .6 : st.done.includes(m.id) ? 1 : Math.min(.85, .15 + .7 * c.pos / c.queue.length);
   const charge = m.final ? (c.ok || 0) / c.queue.length : null;
   const extra = `<span class="stag">${m.name.toUpperCase()} · ${c.pos + 1}/${c.queue.length}</span><div class="schips">${chips.join('')}</div>` +
-    (m.final ? `<div class="charge"><span class="lab">Jump drive</span><div class="cbar"><i style="width:${Math.round(100 * charge)}%"></i></div>${st.timer ? '<span class="timer" id="timer">--:--</span>' : ''}</div>` : '');
+    (m.final ? `<div class="charge"><span class="lab">${W().charge}</span><div class="cbar"><i style="width:${Math.round(100 * charge)}%"></i></div>${st.timer ? '<span class="timer" id="timer">--:--</span>' : ''}</div>` : '');
   show(`<section class="scr">
     ${sceneHTML(m.id, lit, extra, m.final || (m.repair && st.hull < 35), charge)}
     ${talkHTML()}
@@ -601,18 +602,18 @@ function renderTask(){
   </section>`);
   document.getElementById('qtext').innerHTML = questionHTML();
   drawBody(); drawHints();
-  say(m.repair ? pick(REPAIRL) : (t.story || pick(FRESH)), t.reroute || m.repair ? 'smug' : m.final ? 'alarm' : 'neutral');
+  say(m.repair ? pick(CAMP.repairLines) : (t.story || pick(m.flav || FRESH)), t.reroute || m.repair ? 'smug' : m.final ? 'alarm' : 'neutral');
   if (m.final && st.timer) startTimer(t.type === 'calc' ? 180 : 45);
 }
 function questionHTML(){
   const t = ui.t;
   switch (t.type){
     case 'calc': return `<p>${F(ui.b.q)}</p>`;
-    case 'balance': return `<p>${F(t.L.join(' + ') + ' → ' + t.R.join(' + '))}. What is the coefficient of ${F(t.ask)}?</p>`;
+    case 'balance': return `${t.q ? `<p>${F(t.q)}</p>` : ''}<p${t.q ? ' style="margin-top:8px"' : ''}>${F(t.L.join(' + ') + ' → ' + t.R.join(' + '))}${t.q ? '' : '.'}${t.ask ? (t.q ? '' : ` What is the coefficient of ${F(t.ask)}?`) : (t.q ? '' : ' Balance it with the smallest whole-number coefficients.')}</p>`;
     case 'classify': return `<p>Classify this reaction.</p>`;
-    case 'net': return `<p>Write the net ionic equation and name the spectator ions for:</p><p style="margin-top:8px">${F(t.L.map(x => (x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')').join(' + ') + ' → ' + t.R.map(x => (x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')').join(' + '))}</p>`;
+    case 'net': return `${t.pre ? `<p style="margin-bottom:8px">${F(t.pre)}</p>` : ''}<p>Write the net ionic equation and name the spectator ions for:</p><p style="margin-top:8px">${F(t.L.map(x => (x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')').join(' + ') + ' → ' + t.R.map(x => (x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')').join(' + '))}</p>`;
     case 'redox': return `<p>${F(t.L.join(' + ') + ' → ' + t.R.join(' + '))}</p><p style="margin-top:8px">Which reactant is oxidized and loses electrons? Which is reduced and gains electrons?</p>`;
-    default: return `<p>${F(t.q)}</p>`;
+    default: return `<p>${F(t.q)}</p>${t.fig ? `<div class="figs">${t.fig.map(f => `<figure>${lewisSVG(f.lw)}${f.label ? `<figcaption>${F(f.label)}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}`;
   }
 }
 function drawHints(){
@@ -620,8 +621,8 @@ function drawHints(){
   if (ui.done){ el.innerHTML = ''; }
   else {
     const b = [];
-    if (!ui.hints.rule) b.push(`<button class="pb sm" data-act="hint" data-h="rule" ${st.energy < 5 ? 'disabled' : ''}>Manual · 5 nrg</button>`);
-    if (t.type === 'calc' && !ui.hints.setup) b.push(`<button class="pb sm" data-act="hint" data-h="setup" ${st.energy < 10 ? 'disabled' : ''}>Setup · 10 nrg</button>`);
+    if (!ui.hints.rule) b.push(`<button class="pb sm" data-act="hint" data-h="rule" ${st.energy < 5 ? 'disabled' : ''}>Manual · 5 ${W().nrg.toLowerCase()}</button>`);
+    if (t.type === 'calc' && !ui.hints.setup) b.push(`<button class="pb sm" data-act="hint" data-h="setup" ${st.energy < 10 ? 'disabled' : ''}>Setup · 10 ${W().nrg.toLowerCase()}</button>`);
     b.push(`<button class="pb sm" data-act="sheet">Data sheet</button>`);
     el.innerHTML = b.join('');
   }
@@ -647,27 +648,32 @@ function drawBody(){
         <p class="err" id="err"></p>
         ${ui.done ? '' : `<button class="pb go big" data-act="submit">${verb} ▶</button>`}</div>`; break;
     case 'balance':
-      h = `<div class="win dev"><div class="devh"><span>Reactor controls</span><span>Lowest whole numbers</span></div><div id="balbox">${reactorHTML(t.L, t.R, ui.coefs, ui.done)}</div>
-        ${ui.done ? '' : `<button class="pb go big" data-act="submit">Engage core ▶</button>`}</div>`; break;
+      h = `<div class="win dev"><div class="devh"><span>${CAMP.dev.balance}</span><span>Lowest whole numbers</span></div><div id="balbox">${reactorHTML(t.L, t.R, ui.coefs, ui.done)}</div>
+        ${ui.done ? '' : `<button class="pb go big" data-act="submit">${verb} ▶</button>`}</div>`; break;
     case 'tf':
-      h = `<div class="win dev"><div class="devh"><span>Safety interlock</span></div><div class="plates">
+      h = `<div class="win dev"><div class="devh"><span>${CAMP.dev.tf}</span></div><div class="plates">
         <button class="pb ok plate" data-act="pickc" data-v="0" ${dis}>True</button><button class="pb bad plate" data-act="pickc" data-v="1" ${dis}>False</button></div></div>`; break;
     case 'choice':
-      h = `<div class="win dev"><div class="devh"><span>Cell diagnostic</span></div><div class="plates">${t.opts.map((x, i) => `<button class="pb ${i ? 'cy' : 'go'} plate" data-act="pickc" data-v="${i}" ${dis}>${x}</button>`).join('')}</div></div>`; break;
+      h = `<div class="win dev"><div class="devh"><span>${CAMP.dev.choice}</span></div><div class="plates">${t.opts.map((x, i) => `<button class="pb ${i ? 'cy' : 'go'} plate" data-act="pickc" data-v="${i}" ${dis}>${x}</button>`).join('')}</div></div>`; break;
     case 'nums':
-      h = `<div class="win dev"><div class="devh"><span>Mole gauges</span></div><div class="gauges">
+      h = `<div class="win dev"><div class="devh"><span>${CAMP.dev.nums}</span></div><div class="gauges">
         ${['Mol in (reactants)', 'Mol out (products)'].map((lb, i) => `<div class="gauge"><span class="lab">${lb}</span><span class="gv">${ui.nv[i]}</span>
           <div class="row" style="justify-content:center"><button class="sbtn" data-act="nv" data-i="${i}" data-d="-1" aria-label="Decrease" ${dis}>−</button><button class="sbtn" data-act="nv" data-i="${i}" data-d="1" aria-label="Increase" ${dis}>+</button></div></div>`).join('')}
         </div>${ui.done ? '' : `<button class="pb go big" data-act="submit">Engage ▶</button>`}</div>`; break;
     case 'classify':
-      h = `<div class="win dev"><div class="devh"><span>Radar · incoming signal</span><span class="blink">●</span></div>
+      h = `<div class="win dev"><div class="devh"><span>${CAMP.dev.classify}</span><span class="blink">●</span></div>
         <div class="scope"><div class="sweep"></div><div class="blip" id="blip">${F(t.eq)}</div></div>
-        <div class="chans">${CLASSES.map(([k, n], i) => `<button class="pb" data-act="pickc" data-v="${k}" ${dis}><small>CH${i + 1}</small>${n}</button>`).join('')}</div></div>`; break;
+        <div class="chans">${clsList(t).map(([k, n], i) => `<button class="pb" data-act="pickc" data-v="${k}" ${dis}><small>CH${i + 1}</small>${n}</button>`).join('')}</div></div>`; break;
+    case 'mc':
+      h = `<div class="win dev"><div class="devh"><span>${CAMP.dev.mc}</span><span>Pick one</span></div><div class="opts">${t.opts.map((o, i) => `<button class="opt" data-act="pickc" data-v="${i}" ${dis}><b>${'ABCDE'[i]}</b><span>${optHTML(o)}</span></button>`).join('')}</div></div>`; break;
+    case 'numval':
+      h = `<div class="win dev"><div class="devh"><span>${CAMP.dev.numval}</span><span>${F(t.unit)}</span></div>${lcdHTML(false)}${keysHTML(false)}
+        <p class="err" id="err"></p>${ui.done ? '' : `<button class="pb go big" data-act="submit">${verb} ▶</button>`}</div>`; break;
     case 'text':
-      h = `<div class="crate ${ui.done && ui.lastOk ? 'open' : ''}"><div class="label"><span class="lab">New label · ${t.fields.some(f => f.cs) ? 'type subscripts as plain numbers, e.g. Fe2(SO4)3' : 'old system uses -ous / -ic'}</span>
+      h = `<div class="${CAMP.id === 'tower' ? 'crate scroll' : 'crate'} ${ui.done && ui.lastOk ? 'open' : ''}"><div class="label"><span class="lab">${CAMP.id === 'tower' ? 'Inscription' : 'New label'} · ${t.fields.some(f => f.cs) ? 'type subscripts as plain numbers, e.g. Fe2(SO4)3' : t.topic === 'name' ? 'old system uses -ous / -ic' : 'spelling counts, capitals don\'t'}</span>
         ${t.fields.map((f, i) => `<label class="lab" for="tx${i}" style="margin-top:6px">${F(f.label)}</label><input id="tx${i}" class="inpx" autocomplete="off" autocapitalize="off" spellcheck="false" ${dis}>`).join('')}</div>
         <p class="err" id="err" style="color:#fff3b0"></p>
-        ${ui.done ? '' : `<button class="pb go big" data-act="submit">Stamp label ▶</button>`}</div>`; break;
+        ${ui.done ? '' : `<button class="pb go big" data-act="submit">${VERB[ui.room] || 'Stamp label'} ▶</button>`}</div>`; break;
     case 'net': h = netBody(); break;
     case 'redox': h = redoxBody(); break;
   }
@@ -742,13 +748,13 @@ function netBody(){
     return `<button class="bb ${x.st === 's' ? 'solid' : 'cmp'} ${okDone && x.st === 's' ? 'drop' : ''}" data-act="nsplit" data-side="${sd}" data-i="${i}" ${ui.done ? 'disabled' : ''}>${F((x.c > 1 ? x.c : '') + x.f + '(' + x.st + ')')}</button>`;
   }).join('');
   const instr = allSplit ? 'Step 2: tap the spectator ions to vent them. They appear unchanged on both sides.' : 'Step 1: tap each dissolved (aq) compound to split it into ions.';
-  return `<div class="win dev"><div class="devh"><span>Tank controls</span><span>${allSplit ? 'Step 2' : 'Step 1'}</span></div>
+  return `<div class="win dev"><div class="devh"><span>${CAMP.dev.net}</span><span>${allSplit ? 'Step 2' : 'Step 1'}</span></div>
     <p class="dim" style="margin:0;font-size:16px">${instr}</p>
     <div class="tank"><span class="lab">Intake · reactants</span><div class="tiles">${side(N.L, 'L')}</div></div>
     <div class="flow">▼ ▼ ▼</div>
     <div class="tank"><span class="lab">Outflow · products</span><div class="tiles">${side(N.R, 'R')}</div></div>
     <p class="err" id="err"></p>
-    ${ui.done ? '' : `<button class="pb go big" data-act="submit" ${allSplit ? '' : 'disabled'}>Flush tank ▶</button>`}</div>`;
+    ${ui.done ? '' : `<button class="pb go big" data-act="submit" ${allSplit ? '' : 'disabled'}>${VERB[ui.room] || 'Flush tank'} ▶</button>`}</div>`;
 }
 function redoxBody(){
   const t = ui.t, X = ui.rx;
@@ -827,7 +833,7 @@ function gradeSci(){
   const uv = mv * 10 ** e;
   const digits = ms.replace('.', '').replace(/^0+/, '');
   const usf = ms.includes('.') ? digits.length : (digits.replace(/0+$/, '').length || 1);
-  const normd = mv >= 1 && mv < 10;
+  const normd = a.anyForm || (mv >= 1 && mv < 10);
   const ts = toSci(a.value, a.sf), ev = parseFloat(ts.m) * 10 ** ts.e, ulp = 10 ** (ts.e - a.sf + 1);
   const uUlp = 10 ** (Math.floor(Math.log10(Math.abs(uv))) - usf + 1);
   const close = Math.abs(uv - a.value) <= Math.max(.006 * Math.abs(a.value), .55 * uUlp, 1.01 * ulp);
@@ -842,7 +848,7 @@ function gradeSci(){
   const rows = [
     ['Value', valOk, vDet],
     ['Sig figs', sfOk, sfOk ? `${a.sf} sig figs.` : `You gave ${usf}. This answer needs ${a.sf}.`],
-    ['Scientific notation', normd, normd ? 'The number in front is between 1 and 10.' : 'The number in front must be at least 1 and less than 10.'],
+    a.anyForm ? ['Notation', true, 'Standard or scientific notation both count here.'] : ['Scientific notation', normd, normd ? 'The number in front is between 1 and 10.' : 'The number in front must be at least 1 and less than 10.'],
     ['Units', unitOk, unitOk ? a.unit : `The unit should be ${a.unit}.`]
   ];
   return { ok:valOk && sfOk && normd && unitOk, sev:close ? 'minor' : 'major', rows, you:`${ms}×10^${e} ${k.unit}` };
@@ -853,8 +859,8 @@ const workList = lines => `<span class="lab">Worked solution · compare with you
 function solutionHTML(t){
   switch (t.type){
     case 'calc': {
-      if (!ui.b.grids) return `<p>Key: <b>${F(ansText(ui.b.a))}</b></p>${workList(ui.b.work)}`;
-      return `<p>Key: <b>${F(ansText(ui.b.a))}</b></p><span class="lab">Worked solution · set it up like this</span>${ui.b.grids.map(g => factorGrid(g)).join('')}${flKey}
+      if (!ui.b.grids) return `<p>Key: <b>${F(keyText(ui.b.a))}</b></p>${workList(ui.b.work)}`;
+      return `<p>Key: <b>${F(keyText(ui.b.a))}</b></p><span class="lab">Worked solution · set it up like this</span>${ui.b.grids.map(g => factorGrid(g)).join('')}${flKey}
         <ol class="work">${ui.b.notes.map(l => `<li>${F(l)}</li>`).join('')}</ol>`;
     }
     case 'numunit': return `<p>Key: <b>${t.v.toFixed(2)} ${t.unit}</b>. ${F(t.why)}</p>`;
@@ -862,7 +868,10 @@ function solutionHTML(t){
     case 'nums': return `<p>Key: <b>${t.a[0]} mol</b> reactants, <b>${t.a[1]} mol</b> products. ${F(t.why)}</p>`;
     case 'tf': return `<p>Answer: <b>${t.a ? 'True' : 'False'}</b>. ${F(t.why)}</p>`;
     case 'choice': return `<p>Answer: <b>${t.opts[t.a]}</b>. ${F(t.why)}</p>`;
-    case 'classify': return `<p>Answer: <b>${CLASSES.find(c => c[0] === t.a)[1]}</b>. ${F(t.why)}</p>`;
+    case 'classify': { const L = clsList(t), nm = k => L.find(c => c[0] === k)[1];
+      return `<p>Answer: <b>${nm(t.a)}</b>${t.alt && t.alt.length ? ` (also accepted: ${t.alt.map(nm).join(', ')})` : ''}. ${F(t.why)}</p>`; }
+    case 'mc': return `<p>Answer: <b>${'ABCDE'[t.a]}</b>${typeof t.opts[t.a] === 'string' ? ` · ${F(t.opts[t.a])}` : ''}.</p><p>${F(t.why)}</p>`;
+    case 'numval': return `<p>Answer: <b>${t.v} ${F(t.unit)}</b>. ${F(t.why)}</p>`;
     case 'text': return `<p>${t.fields.map(f => `${F(f.label)}: <b>${F(f.disp || f.accept[0])}</b>`).join('<br>')}</p><p>${F(t.why)}</p>`;
     case 'net': return `<p>Net ionic: <b>${F(t.net)}</b></p><p>Spectators: <b>${F(t.spect.join(', '))}</b></p>`;
     case 'redox': return `<p>Oxidized: <b>${F(t.L[t.ox])}</b>. Reduced: <b>${F(t.L[t.red])}</b>.</p><p>${F(t.why)}</p>`;
@@ -898,6 +907,11 @@ function submit(){
       break;
     }
     case 'nums': ok = ui.nv[0] === t.a[0] && ui.nv[1] === t.a[1]; html = solutionHTML(t); break;
+    case 'numval': {
+      const v = parseFloat(ui.kp.m); if (isNaN(v)) return setErr('Punch in a number.');
+      ok = Math.abs(v - t.v) <= (t.tol != null ? t.tol : Math.max(1e-9, Math.abs(t.v) * .005)); sev = 'major';
+      html = `<p>You entered <b>${ui.kp.m} ${F(t.unit)}</b></p>${solutionHTML(t)}`; break;
+    }
     case 'text': {
       const vals = t.fields.map((f, i) => normT(document.getElementById('tx' + i).value, f.cs));
       if (vals.some(v => !v)) return setErr('Fill in every line of the label.');
@@ -924,9 +938,15 @@ function pickChoice(v){
   const t = ui.t; let ok = false;
   if (t.type === 'tf') ok = (v === '0') === t.a;
   if (t.type === 'choice') ok = +v === t.a;
-  if (t.type === 'classify') ok = v === t.a;
+  if (t.type === 'classify') ok = v === t.a || (t.alt || []).includes(v);
+  if (t.type === 'mc') ok = +v === t.a;
   ui.picked = v;
   resolve(ok, 'major', solutionHTML(t));
+}
+const clsList = t => t.cls === 2 ? CLASSES2 : CLASSES;
+function keyText(a){
+  if (a.anyForm){ const v = a.value, pl = Number(v.toPrecision(a.sf)); if (Math.abs(v) >= 1e-3 && Math.abs(v) < 1e5){ let s = v.toPrecision(a.sf); if (s.includes('e')) s = String(pl); return `${s} ${a.unit} (= ${ansText(a)})`; } }
+  return ansText(a);
 }
 const OKL = ['Repair holds. Nice.', 'Clean. Exactly what the key says.', 'That\'s how it\'s done.', 'Confirmed. Moving on.', 'Good. I\'d have gotten that too, before the meteor.'];
 const MINORL = ['The number is right, but the format isn\'t. On the quiz that still costs you.', 'So close. Check sig figs, notation, and units.'];
@@ -947,11 +967,11 @@ function resolve(ok, sev, html){
     if (t.type === 'calc'){ st.calcStreak++; if (st.calcStreak >= 5) earned.push('sniper'); }
     earned.push('first'); if (st.streak >= 3) earned.push('s3'); if (st.streak >= 5) earned.push('s5'); if (st.streak >= 10) earned.push('s10');
     if (t.reroute) earned.push('comeback');
-    extra = `<p class="gain">+${gain} energy${bonus ? ` · combo x${st.streak} +${bonus}` : ''}</p>`;
+    extra = `<p class="gain">+${gain} ${W().energy}${bonus ? ` · combo x${st.streak} +${bonus}` : ''}</p>`;
     if (m.repair){
       const before = st.hull; st.hull = Math.min(100, st.hull + 15); st.wrongs = st.wrongs.filter(w => w.id !== t.id);
       earned.push('welder');
-      extra += `<p class="gain" style="color:var(--ba)">Patch welded · +${st.hull - before} hull (now ${st.hull}%)</p>`;
+      extra += `<p class="gain" style="color:var(--ba)">${W().patched} · +${st.hull - before} ${W().hull} (now ${st.hull}%)</p>`;
     }
     if (o){ o.okUntil = now + 3; o.live = false; if (m.final) o.charge = c.ok / c.queue.length; }
     SND.play(bonus ? 'combo' : 'ok'); flash('green');
@@ -965,14 +985,14 @@ function resolve(ok, sev, html){
     st.streak = 0; if (t.type === 'calc') st.calcStreak = 0;
     st.missed[t.topic] = (st.missed[t.topic] || 0) + 1;
     if (m.repair){
-      extra = `<p class="dmg">Patch didn't hold. This crack stays in the repair bay.</p>`;
+      extra = `<p class="dmg">${W().patchFail}</p>`;
     } else {
       const d = sev === 'minor' ? 6 : 15; st.hull -= d;
-      extra = `<p class="dmg">−${d} hull${sev === 'minor' ? ' · formatting only' : ''}</p>`;
-      if (st.hull <= 0){ st.patches++; st.hull = 35; extra += `<p class="dmg">Hull failure! Emergency patch #${st.patches}. Hull back to 35.</p>`; }
+      extra = `<p class="dmg">−${d} ${W().hull}${sev === 'minor' ? ' · formatting only' : ''}</p>`;
+      if (st.hull <= 0){ st.patches++; st.hull = 35; extra += `<p class="dmg">${W().failHull} #${st.patches}. ${W().Hull} back to 35.</p>`; }
       addWrong(t);
-      extra += `<p class="dim" style="font-size:15px">Added to the repair bay. Re-solve it there to win the hull back.</p>`;
-      if ((t.depth || 0) < 2){ c.queue.push(variantOf(t, true)); c.rer++; extra += `<p class="dim" style="font-size:15px">MOLLY also queued a rerouted version with new values.</p>`; }
+      extra += `<p class="dim" style="font-size:15px">${W().added}</p>`;
+      if ((t.depth || 0) < 2){ c.queue.push(variantOf(t, true)); c.rer++; extra += `<p class="dim" style="font-size:15px">${CAMP.pal} also queued a ${t.type === 'calc' ? 'version with new values' : 'related question'}.</p>`; }
     }
     if (o){ o.failUntil = now + 1.2; o.live = false; }
     SND.play(sev === 'minor' ? 'minor' : 'fail'); flash('red'); shake();
@@ -983,8 +1003,8 @@ function resolve(ok, sev, html){
   const snap = {}; view.querySelectorAll('input').forEach(i => { snap[i.id] = i.value; });
   drawBody(); drawHints();
   for (const id in snap){ const el = document.getElementById(id); if (el) el.value = snap[id]; }
-  if (['tf','choice','classify'].includes(t.type)) markPicked(ok);
-  document.getElementById('fb').innerHTML = `<div class="win fb ${ok ? 'ok' : 'no'}"><div class="fbh">${ok ? '★ System repaired' : '✗ Fault detected'}</div>
+  if (['tf','choice','classify','mc'].includes(t.type)) markPicked(ok);
+  document.getElementById('fb').innerHTML = `<div class="win fb ${ok ? 'ok' : 'no'}"><div class="fbh">${ok ? W().fixed : W().fault}</div>
     <div class="fbb">${html}${extra}<button class="pb go big" data-act="next">Next ▶</button></div></div>`;
   hud(); award(earned);
   const rankAfter = rankIdx(st.xp);
@@ -995,7 +1015,7 @@ const stripTags = s => String(s).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').t
 function markPicked(ok){
   view.querySelectorAll('[data-act="pickc"]').forEach(b => {
     const t = ui.t, v = b.dataset.v;
-    const right = t.type === 'tf' ? ((v === '0') === t.a) : t.type === 'choice' ? +v === t.a : v === t.a;
+    const right = t.type === 'tf' ? ((v === '0') === t.a) : (t.type === 'choice' || t.type === 'mc') ? +v === t.a : (v === t.a || (t.alt || []).includes(v));
     if (right){ b.classList.remove('bad', 'go', 'cy'); b.classList.add('ok'); b.disabled = false; b.style.pointerEvents = 'none'; }
     else if (v === ui.picked && !ok){ b.classList.remove('ok', 'go', 'cy'); b.classList.add('bad'); b.disabled = false; b.style.pointerEvents = 'none'; }
   });
@@ -1037,14 +1057,14 @@ function nextTask(){
   if (m.repair){
     const fixed = c.ok || 0; st.cur = st.parked || null; st.parked = null; save();
     show(`<section class="scr">
-      ${sceneHTML('bay', Math.max(.2, st.hull / 100), `<span class="stag">REPAIR BAY · HULL ${st.hull}%</span>`)}
-      <h1 class="h1">Welding done</h1>
+      ${sceneHTML(CAMP.repair.id, Math.max(.2, st.hull / 100), `<span class="stag">${W().Bay.toUpperCase()} · ${W().Hull.toUpperCase()} ${st.hull}%</span>`)}
+      <h1 class="h1">${W().doneWeld}</h1>
       ${talkHTML()}
-      <div class="stats"><div class="stat"><span class="lab">Welded</span><b>${fixed}/${tot}</b></div><div class="stat"><span class="lab">Hull</span><b>${st.hull}%</b></div><div class="stat"><span class="lab">Cracks left</span><b>${st.wrongs.length}</b></div></div>
-      <div class="stack">${st.wrongs.length ? `<button class="pb" data-act="repair">Weld more (${Math.min(5, st.wrongs.length)})</button>` : ''}<button class="pb go big" data-act="map">Back to map ▶</button></div>
+      <div class="stats"><div class="stat"><span class="lab">${W().welded}</span><b>${fixed}/${tot}</b></div><div class="stat"><span class="lab">${W().Hull}</span><b>${st.hull}%</b></div><div class="stat"><span class="lab">${W().cracksLeft}</span><b>${st.wrongs.length}</b></div></div>
+      <div class="stack">${st.wrongs.length ? `<button class="pb" data-act="repair">${W().weldMore} (${Math.min(5, st.wrongs.length)})</button>` : ''}<button class="pb go big" data-act="map">Back to map ▶</button></div>
     </section>`);
     if (fixed) SND.play('power');
-    say(!fixed ? 'None held this time. Read the worked solutions and come back.' : st.wrongs.length ? `${fixed} patch${fixed > 1 ? 'es' : ''} welded. ${st.wrongs.length} crack${st.wrongs.length > 1 ? 's' : ''} left.` : 'Every crack is sealed. That\'s the stuff you used to miss, now fixed.', fixed ? 'happy' : 'worried');
+    say(!fixed ? 'None held this time. Read the worked solutions and come back.' : st.wrongs.length ? `${fixed} ${W().crack}${fixed > 1 ? 's' : ''} ${W().weld === 'weld' ? 'welded' : 'mended'}. ${st.wrongs.length} left.` : `Every ${W().crack} is sealed. That's the stuff you used to miss, now fixed.`, fixed ? 'happy' : 'worried');
     return;
   }
   const first = !st.done.includes(m.id);
@@ -1054,10 +1074,10 @@ function nextTask(){
   if (c.first === tot) earned.push('flawless');
   if (!c.hints) earned.push('nohint');
   st.cur = null;
-  if (m.final){ st.finished = true; earned.push('jump'); if (!st.patches) earned.push('iron'); save(); renderEnding(res, earned); return; }
+  if (m.final){ st.finished = true; earned.push(CAMP.finalBadge); if (!st.patches) earned.push('iron'); save(); renderEnding(res, earned); return; }
   save();
   show(`<section class="scr">
-    ${sceneHTML(m.id, 1, `<span class="stag">SYSTEM ${MODS.indexOf(m) + 1} · ONLINE</span>`)}
+    ${sceneHTML(m.id, 1, `<span class="stag">${W().unit.toUpperCase()} ${MODS.indexOf(m) + 1} · ${W().online.toUpperCase()}</span>`)}
     <h1 class="h1">${m.name} restored</h1>
     ${talkHTML()}
     <div class="stats">
@@ -1075,24 +1095,22 @@ function nextTask(){
 }
 function renderEnding(res, earned){
   const pct = st.score.n ? Math.round(100 * st.score.ok / st.score.n) : 0;
-  let head, lines;
-  if (pct >= 85 && st.patches === 0){ head = 'Course set for home'; lines = ['Jump complete. Every system green, and you did the math by hand.', 'You\'re ready for the quiz. Run a remix the night before to keep it fresh.']; }
-  else if (pct >= 65){ head = 'Limping home'; lines = ['We made the jump, but a few systems are running on patches.', 'Check the study report for the topics that cost you hull, then run a remix.']; }
-  else { head = 'Barely made it'; lines = ['We made the jump. Barely.', 'Go through the study report, reread those manual pages, and run a remix. The numbers change every time.']; }
+  const [head, lines] = CAMP.ending(pct, st.patches);
   show(`<section class="scr" style="text-align:center">
-    <canvas data-art="ship" data-lit="1" class="pix shipart" width="48" height="64" style="margin:0 auto" aria-hidden="true"></canvas>
+    <canvas data-art="${CAMP.art}" data-lit="1" class="pix shipart" width="48" height="64" style="margin:0 auto" aria-hidden="true"></canvas>
     <h1 class="h1">${head}</h1>
     ${talkHTML()}
     <div class="stats">
       <div class="stat"><span class="lab">Guide first-try</span><b>${st.score.ok}/${st.score.n}</b></div>
-      <div class="stat"><span class="lab">Jump check</span><b>${res.first}/${res.tot}</b></div>
+      <div class="stat"><span class="lab">${W().check}</span><b>${res.first}/${res.tot}</b></div>
       <div class="stat"><span class="lab">Patches</span><b>${st.patches}</b></div>
       <div class="stat"><span class="lab">Rank</span><b style="font-size:11px">${RANKS[rankIdx(st.xp)][1]}</b></div>
     </div>
     <div id="dlgbtns"></div>
-    <div class="stack"><button class="pb" data-act="report">Study report</button><button class="pb" data-act="badges">Badges</button><button class="pb" data-act="remix">${ui.confirm === 'remix' ? 'Tap again to remix' : 'Remix: new numbers'}</button></div>
+    <div class="stack"><button class="pb" data-act="report">Study report</button><button class="pb" data-act="badges">Badges</button><button class="pb" data-act="remix" data-c="${CAMP.id}">${ui.confirm === 'remix:' + CAMP.id ? 'Tap again to remix' : 'Remix: new numbers'}</button></div>
   </section>`);
-  SND.play('warp'); stars.warp = 1; if (!reduced()) setTimeout(() => { stars.warp = 0; }, 2600); else stars.warp = 0;
+  if (CAMP.id === 'tower'){ SND.play('power'); const r = sceneRect(); fx.burst(innerWidth / 2, 160, 60, [C.cu, '#9ff7ff', C.white, C.pink], 8); }
+  else { SND.play('warp'); stars.warp = 1; if (!reduced()) setTimeout(() => { stars.warp = 0; }, 2600); else stars.warp = 0; }
   flash('green');
   ui.dlg = { lines, i:0, after:'', exprs:lines.map(() => 'happy') }; dlgStep();
   award(earned);
@@ -1110,7 +1128,7 @@ function renderReport(){
     <h1 class="h1">Study report</h1>
     <div class="win rep">${rows.map(r => r.html).join('')}</div>
     ${weak.length ? `<span class="lab">Review these manual pages</span>${weak.map(r => ruleCard(r.k)).join('')}` : (Object.keys(st.stats).length ? '<p>No weak topics so far.</p>' : '')}
-    <div class="row"><button class="pb go" data-act="map">Station map</button><button class="pb" data-act="title">Title</button></div>
+    <div class="row"><button class="pb go" data-act="map">Map</button><button class="pb" data-act="title">Title</button></div>
   </section>`);
 }
 function renderBadges(){
@@ -1120,7 +1138,7 @@ function renderBadges(){
     <p class="dim" style="margin:0">${st.xp} XP${nxt ? ` · ${nxt[0] - st.xp} XP to ${nxt[1]}` : ' · top rank'} · best streak ${st.best}</p>
     <div class="bgrid">${BADGES.map(b => { const has = st.badges.includes(b.id);
       return `<div class="win bdg ${has ? '' : 'lock'}"><canvas class="pix" width="12" height="14" data-medal="${b.c}" data-lock="${has ? 0 : 1}" aria-hidden="true"></canvas><b>${b.name}</b><span>${b.d}</span></div>`; }).join('')}</div>
-    <div class="row"><button class="pb go" data-act="map">Station map</button><button class="pb" data-act="title">Title</button></div>
+    <div class="row"><button class="pb go" data-act="map">Map</button><button class="pb" data-act="title">Title</button></div>
   </section>`);
 }
 
@@ -1190,12 +1208,17 @@ document.addEventListener('click', e => {
   switch (act){
     case 'title': renderTitle(); break;
     case 'continue': renderMap(); break;
-    case 'new':
-      if (hasRun() && ui.confirm !== 'new'){ ui.confirm = 'new'; b.textContent = 'Tap again to erase'; break; }
-      { const snd = st.sound; st = fresh(); st.sound = snd; } save(); ui = {}; renderBoot(); break;
-    case 'remix':
-      if (ui.confirm !== 'remix'){ ui.confirm = 'remix'; b.textContent = 'Tap again to remix'; break; }
-      { const snd = st.sound, xp = st.xp, badges = st.badges, best = st.best; st = fresh(); Object.assign(st, {sound:snd, xp, badges, best, remix:true}); } save(); ui = {}; renderBoot(); break;
+    case 'camp': switchCamp(b.dataset.c); ui = {}; hasRun() ? renderMap() : renderBoot(); break;
+    case 'new': {
+      const c = b.dataset.c || CAMP.id;
+      if (campSummary(c).run && ui.confirm !== 'new:' + c){ ui.confirm = 'new:' + c; b.textContent = 'Tap again to erase'; break; }
+      switchCamp(c); Object.assign(st, campFresh()); save(); ui = {}; renderBoot(); break;
+    }
+    case 'remix': {
+      const c = b.dataset.c || CAMP.id;
+      if (ui.confirm !== 'remix:' + c){ ui.confirm = 'remix:' + c; b.textContent = 'Tap again to remix'; break; }
+      switchCamp(c); Object.assign(st, campFresh(), {remix:true}); save(); ui = {}; renderBoot(); break;
+    }
     case 'map': renderMap(); break;
     case 'repair': startRepair(); break;
     case 'mod': {
@@ -1237,7 +1260,7 @@ document.addEventListener('click', e => {
     }
     case 'next': nextTask(); break;
     case 'coef': {
-      const i = +b.dataset.i; ui.coefs[i] = Math.min(12, Math.max(1, ui.coefs[i] + +b.dataset.d)); SND.play('key');
+      const i = +b.dataset.i; ui.coefs[i] = Math.min(20, Math.max(1, ui.coefs[i] + +b.dataset.d)); SND.play('key');
       const t = ui.t, L = t.type === 'balance' ? t : LIM[t.p.r];
       const before = balState(L.L, L.R, ui.coefs).bal;
       document.getElementById('balbox').innerHTML = reactorHTML(L.L, L.R, ui.coefs, false);
@@ -1249,7 +1272,7 @@ document.addEventListener('click', e => {
       if (s.bal && s.lowest){ ui.phase = 'answer'; SND.play('ok'); const o = mainScene(); if (o) o.live = false; drawBody(); break; }
       if (!ui.flags.bal){ ui.flags.bal = true; st.hull -= 6; if (st.hull <= 0){ st.patches++; st.hull = 35; } save(); hud(); shake(); flash('red'); }
       SND.play('jam');
-      e1.textContent = !s.bal ? 'Not balanced yet: fix the ≠ rows. (−6 hull)' : 'Balanced, but not in lowest whole numbers. (−6 hull)';
+      e1.textContent = !s.bal ? `Not balanced yet: fix the ≠ rows. (−6 ${W().hull})` : `Balanced, but not in lowest whole numbers. (−6 ${W().hull})`;
       break;
     }
     case 'cart': { const v = b.dataset.v; ui.sel = ui.sel.includes(v) ? ui.sel.filter(x => x !== v) : ui.sel.concat(v); SND.play('key'); drawBody(); break; }
@@ -1259,7 +1282,7 @@ document.addEventListener('click', e => {
       if (!good){ ui.flags.sel = true; st.hull -= 6; if (st.hull <= 0){ st.patches++; st.hull = 35; } save(); hud(); SND.play('jam'); shake(); flash('red'); say('Jammed. Green cartridges are the ones that belong. Use those for step 2.', 'worried'); }
       else { SND.play('ok'); say('Cartridges accepted. Now do the math on paper.', 'happy'); }
       ui.phase = 'answer'; drawBody();
-      document.getElementById('err1').textContent = good ? 'Correct cartridges.' : 'Wrong set (−6 hull). Green = needed.';
+      document.getElementById('err1').textContent = good ? 'Correct cartridges.' : `Wrong set (−6 ${W().hull}). Green = needed.`;
       break;
     }
     case 'nsplit': {
@@ -1282,9 +1305,7 @@ document.addEventListener('click', e => {
 document.getElementById('sheet').addEventListener('click', e => { if (e.target.id === 'sheet') e.currentTarget.hidden = true; });
 
 /* Data sheet */
-const PT = [['H','1.008'],['C','12.01'],['N','14.01'],['O','16.00'],['Na','22.99'],['Mg','24.31'],['Al','26.98'],['S','32.07'],['Cl','35.45'],['K','39.10'],['Ca','40.08'],['Fe','55.85'],['Ni','58.69'],['Cu','63.55'],['Zn','65.38'],['Br','79.90'],['Ag','107.87'],['Sn','118.71'],['I','126.90'],['Ba','137.33'],['Pb','207.2']];
+const PT = [['H','1.008'],['C','12.01'],['N','14.01'],['O','16.00'],['F','19.00'],['Na','22.99'],['Mg','24.31'],['Al','26.98'],['S','32.07'],['Cl','35.45'],['K','39.10'],['Ca','40.08'],['Fe','55.85'],['Ni','58.69'],['Cu','63.55'],['Zn','65.38'],['Br','79.90'],['Ag','107.87'],['Sn','118.71'],['I','126.90'],['Ba','137.33'],['Pb','207.2']];
 document.getElementById('ptable').innerHTML = PT.map(([s, m]) => `<div class="pc"><b>${s}</b><span>${m}</span></div>`).join('');
 
-window.__avogadro = { CALC, toSci, sfOf, parseF, balState, ORIG, EXTRA, variantOf };
-stars.resize(); fx.resize(); requestAnimationFrame(loop);
-renderTitle();
+window.__avogadro = { CALC, toSci, sfOf, parseF, balState, get ORIG(){ return ORIG; }, EXTRA, variantOf };
