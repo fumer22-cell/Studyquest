@@ -74,9 +74,9 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .rank canvas{width:27px;height:27px}
 #rankname{display:none}
 @media (min-width:520px){#rankname{display:inline}}
-.hullw{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.hullw{display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;background:none;border:0;padding:4px 0}
 .segs{display:flex;gap:2px}
-.seg{width:7px;height:14px;background:var(--line)}
+.seg{width:5px;height:14px;background:var(--line)}
 .seg.on{background:var(--ba)}.segs.low .seg.on{background:var(--sr);animation:blink .6s steps(2) infinite}
 .enw{display:flex;align-items:center;gap:6px}
 #enev{font:700 15px var(--f-ui);color:var(--na)}
@@ -289,6 +289,27 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .tail{display:flex;justify-content:center}
 .tail canvas{width:60%;height:auto}
 
+/* Factor-label layout (worked solutions) */
+.fl{background:#fbf7ea;color:#1a1a2a;clip-path:var(--notch);padding:12px;display:grid;gap:8px}
+.fl .lab{color:#6a4a2a;letter-spacing:.04em;text-transform:none;font-size:14px}
+.flscroll{overflow-x:auto}
+.flg{display:flex;flex-wrap:wrap;align-items:stretch;justify-content:center;row-gap:10px}
+.flend{display:flex;align-items:stretch}
+.flc{display:grid;grid-template-rows:1fr 1fr;border-left:3px solid #1a1a2a;text-align:center}
+.flc.first{border-left:0}
+.fln,.fld{padding:6px 8px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px}
+.fln{border-bottom:3px solid #1a1a2a}
+.flv{font:700 16px/1.2 var(--f-num);white-space:nowrap}
+.flu{font-size:14px;white-space:nowrap}
+.flu.x{text-decoration:line-through;text-decoration-color:#d23a3a;text-decoration-thickness:3px;color:#9a2a2a}
+.flc.first .flv,.flc.first .flu{color:#1e7a2e}
+.fleq{display:flex;align-items:center;padding:0 8px;font:700 22px var(--f-num);border-left:3px solid #1a1a2a}
+.flr{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;padding:0 4px;color:#1f5fbf}
+.flkey{margin:0;font-size:15px;color:var(--dim)}
+.flkey .k1{color:var(--ba)}.flkey .k2{color:#6fa8ff}.flkey s{color:var(--sr);text-decoration-thickness:2px}
+.bayroom{margin-top:10px;width:100%}
+.bayroom canvas{width:60%;margin:0 auto}
+
 /* Toasts */
 #toasts{position:fixed;left:0;right:0;top:calc(64px + env(safe-area-inset-top,0px));z-index:70;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 16px}
 .toast{display:flex;align-items:center;gap:10px;background:var(--panel);clip-path:var(--notch);box-shadow:inset 0 0 0 4px var(--na);padding:10px 14px;max-width:360px;animation:tin .3s steps(3),tout .3s steps(3) 2.7s forwards}
@@ -331,7 +352,7 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 <div id="app">
 <header class="hud"><div class="hudin">
   <button class="rank" data-act="badges" aria-label="Rank and badges"><canvas id="rankico" class="pix" width="9" height="9"></canvas><span id="rankname">Cadet</span></button>
-  <div class="hullw"><span class="lab">Hull</span><div class="segs" id="segs"></div></div>
+  <button class="hullw" data-act="repair" aria-label="Hull: open the repair bay"><span class="lab">Hull</span><div class="segs" id="segs"></div></button>
   <div class="enw"><span class="lab">Nrg</span><span id="enev">20</span></div>
   <span id="combo" class="combo" hidden>x3</span>
   <button class="icon" data-act="mute" id="mute" aria-label="Toggle sound">SND</button>

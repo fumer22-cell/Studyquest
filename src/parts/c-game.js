@@ -4,7 +4,7 @@
    ======================================================================== */
 const KEY = 'avogadro-station-v1';
 function fresh(){ return { v:2, remix:false, hull:100, energy:20, patches:0, done:[], stats:{}, score:{n:0, ok:0}, missed:{}, cur:null, finished:false,
-  xp:0, streak:0, best:0, calcStreak:0, badges:[], sound:true, timer:false }; }
+  xp:0, streak:0, best:0, calcStreak:0, badges:[], sound:true, timer:false, wrongs:[], parked:null }; }
 function load(){ try { const s = localStorage.getItem(KEY); return s ? Object.assign(fresh(), JSON.parse(s)) : null; } catch (e) { return null; } }
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
 let st = load() || fresh();
@@ -172,6 +172,24 @@ const DEV = {
       else if (o.lit < 1 && Math.random() < .25) k.r(52 + Math.random() * 6, y0 + 1 + Math.random() * 3, 2, 2, '#5a6988');
     });
     o.sx = 20; o.sy = 20;
+  },
+  bay(k, t, o){
+    const a = act(o, t), sealed = o.lit >= .9 || a;
+    k.r(22, 6, 40, 28, C.steelD); k.r(23, 7, 38, 26, '#4a5670');
+    for (let i = 0; i < 5; i++){ k.p(25 + i * 8, 8, C.steel); k.p(25 + i * 8, 31, C.steel); }
+    if (!sealed){
+      k.r(36, 13, 12, 10, C.dark); k.r(38, 11, 7, 2, C.dark); k.r(34, 16, 2, 5, C.dark); k.r(47, 15, 3, 4, C.dark); k.r(39, 23, 6, 2, C.dark);
+      for (let i = 0; i < 5; i++) k.p(37 + ((i * 7 + Math.floor(t * 6)) % 10), 14 + (i * 3) % 8, i % 2 ? C.white : C.cu);
+    } else {
+      k.r(34, 11, 16, 14, C.steel); k.r(35, 12, 14, 12, C.pale);
+      [[35, 12], [48, 12], [35, 23], [48, 23]].forEach(([x, y]) => k.p(x, y, C.steelD));
+    }
+    k.r(3, 30, 10, 4, C.na); k.r(5, 28, 6, 2, C.orange);
+    const tx = 33 + Math.round(Math.sin(t * 3) * 3), ty = 18 + Math.round(Math.cos(t * 2) * 2);
+    k.line(8, 28, 16, 17, C.na); k.line(9, 28, 17, 17, C.na); k.r(15, 16, 3, 3, C.orange);
+    k.line(17, 17, tx, ty, C.na); k.line(17, 18, tx, ty + 1, C.na); k.r(tx, ty - 1, 3, 3, C.steelD);
+    if (a || (o.lit > 0 && Math.floor(t * 8) % 3 === 0)){ k.p(tx + 3, ty, C.white); k.p(tx + 4, ty - 1, C.yel); k.p(tx + 4, ty + 1, C.cu); if (Math.random() < .5) k.p(tx + 2 + Math.random() * 4, ty + 2 + Math.random() * 4, C.na); }
+    o.sx = 42; o.sy = 18;
   },
   fin(k, t, o){
     const a = act(o, t) || o.warp;
@@ -364,6 +382,14 @@ function say(text, expr = 'neutral'){
 const talkHTML = () => `<div class="talk"><canvas data-molly class="pix" width="18" height="16" aria-hidden="true"></canvas><div class="say" id="say" aria-live="polite"></div></div>`;
 const ruleCard = tp => `<div class="rule"><span class="lab">Manual · ${F(TOPICS[tp].name)}</span>${TOPICS[tp].rule.startsWith('<') ? F(TOPICS[tp].rule) : `<p>${F(TOPICS[tp].rule)}</p>`}</div>`;
 const unlocked = i => i === 0 || st.done.includes(MODS[i - 1].id);
+const REPAIR = { id:'bay', code:'Rp', name:'Repair Bay', topics:[], repair:true, tasks:[] };
+const modOf = i => i === -1 ? REPAIR : MODS[i];
+const REPAIRL = ['This one cracked the hull before. Same numbers. Weld it shut.', 'Old crack, same problem. Take your time on paper.', 'You missed this one earlier. Show it who\'s boss.'];
+function addWrong(t){
+  const w = JSON.parse(JSON.stringify(t)); w.reroute = false; w.depth = 0; delete w.story;
+  if (!st.wrongs.some(x => x.id === w.id)) st.wrongs.push(w);
+  if (st.wrongs.length > 40) st.wrongs.shift();
+}
 
 const RANKS = [[0, 'Cadet'], [60, 'Ensign'], [150, 'Lab Tech'], [260, 'Chemist'], [380, 'Sr. Chemist'], [500, 'Chief Chemist']];
 const rankIdx = xp => RANKS.reduce((a, r, i) => xp >= r[0] ? i : a, 0);
@@ -377,7 +403,8 @@ const BADGES = [
   {id:'nohint', name:'Unassisted', d:'Restore a system without buying a hint.', c:C.pink},
   {id:'comeback', name:'Comeback', d:'Fix a rerouted problem after missing it.', c:C.pale},
   {id:'jump', name:'Jump Complete', d:'Escape the station.', c:C.yel},
-  {id:'iron', name:'Iron Hull', d:'Escape without an emergency patch.', c:C.steel}
+  {id:'iron', name:'Iron Hull', d:'Escape without an emergency patch.', c:C.steel},
+  {id:'welder', name:'Hull Welder', d:'Repair the hull by re-solving a problem you missed.', c:C.orange}
 ];
 function award(ids){
   let k = 0;
@@ -450,7 +477,8 @@ function renderMap(){
     const i = MODS.findIndex(m => m.id === id), m = MODS[i], on = st.done.includes(id), un = unlocked(i);
     const cls = on ? 'st-online' : un ? 'st-next' : 'st-locked';
     const lit = on ? 1 : un ? .3 : 0;
-    const stt = on ? 'online' : un ? (st.cur && st.cur.m === i ? 'in repair' : 'broken') : 'sealed';
+    const mid = (st.cur && st.cur.m === i) || (st.parked && st.parked.m === i);
+    const stt = on ? 'online' : un ? (mid ? 'in repair' : 'broken') : 'sealed';
     return `<button class="room ${cls} ${m.final || id === 'eng' ? 'span' : ''}" data-act="mod" data-i="${i}" aria-label="${m.name}: ${stt}">
       <canvas data-room="${id}" data-lit="${lit}" ${m.final && !on ? 'data-alarm="1"' : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>
       <span class="rlab"><i class="led"></i>${i + 1}. ${m.name} · ${stt}</span></button>`;
@@ -464,11 +492,15 @@ function renderMap(){
         <div class="rooms">${LAYOUT.flat().map(cell).join('')}</div></div>
       <div class="tail"><canvas data-art="tail" data-on="${st.done.includes('eng') ? 1 : 0}" class="pix" width="80" height="16" aria-hidden="true"></canvas></div>
     </div>
+    <button class="room bayroom ${st.wrongs.length ? 'st-next' : 'st-online'}" data-act="repair" aria-label="Repair bay: ${st.wrongs.length} cracks">
+      <canvas data-room="bay" data-lit="${Math.max(.2, Math.min(1, st.hull / 100))}" ${st.hull < 35 ? 'data-alarm="1"' : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>
+      <span class="rlab"><i class="led"></i>Repair bay · hull ${Math.max(0, st.hull)}% · ${st.wrongs.length ? st.wrongs.length + ' crack' + (st.wrongs.length > 1 ? 's' : '') + ' to weld' : 'no cracks'}</span></button>
     <div class="row"><button class="pb sm" data-act="badges">Badges ${st.badges.length}/${BADGES.length}</button><button class="pb sm" data-act="report">Study report</button><button class="pb sm" data-act="title">Title</button></div>
   </section>`);
   const next = MODS.findIndex((m, i) => unlocked(i) && !st.done.includes(m.id));
   if (next < 0) say('Every system is online. Replay any room to practice.', 'happy');
-  else if (st.cur) say(`${MODS[st.cur.m].name} is mid-repair. Tap it to pick up where you left off.`, 'neutral');
+  else if (st.hull < 60 && st.wrongs.length) say(`Hull at ${Math.max(0, st.hull)}%. The repair bay has ${st.wrongs.length} crack${st.wrongs.length > 1 ? 's' : ''} from problems you missed. Each one you re-solve restores 15 hull.`, 'worried');
+  else if (st.cur && st.cur.m !== -1) say(`${MODS[st.cur.m].name} is mid-repair. Tap it to pick up where you left off.`, 'neutral');
   else say(next === 0 ? 'Start with the med bay. It\'s the flashing one.' : `Next up: the ${MODS[next].name}. Tap it.`, next === MODS.length - 1 ? 'worried' : 'neutral');
 }
 function enterRoom(i, el){
@@ -478,9 +510,29 @@ function enterRoom(i, el){
 }
 const sceneHTML = (id, lit, extra = '', alarm = false, charge = null) =>
   `<div class="scene"><canvas data-room="${id}" data-lit="${lit}" ${alarm ? 'data-alarm="1"' : ''} ${charge != null ? `data-charge="${charge}"` : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>${extra}</div>`;
+function startRepair(){
+  if (st.cur && st.cur.m === -1){ renderTask(); return; }
+  if (!st.wrongs.length){ SND.play('jam'); say(st.hull < 100 ? 'No cracks to weld yet. Every problem you miss gets added here.' : 'Hull is solid and the repair bay is empty. Nice.', 'happy'); return; }
+  if (st.cur) st.parked = st.cur;
+  const queue = st.wrongs.slice(0, 5).map(w => JSON.parse(JSON.stringify(w)));
+  st.cur = { m:-1, queue, pos:0, first:0, rer:0, ok:0, hints:0 };
+  save();
+  show(`<section class="scr">
+    ${sceneHTML('bay', Math.max(.15, Math.min(.9, st.hull / 100)), `<span class="stag">REPAIR BAY · HULL ${Math.max(0, st.hull)}%</span>`, st.hull < 35)}
+    <h1 class="h1">Repair bay</h1>
+    ${talkHTML()}
+    <div id="dlgbtns"></div>
+    <div class="stats"><div class="stat"><span class="lab">Hull</span><b>${Math.max(0, st.hull)}%</b></div><div class="stat"><span class="lab">Cracks</span><b>${st.wrongs.length}</b></div><div class="stat"><span class="lab">Per weld</span><b>+15</b></div></div>
+    <button class="pb go big" data-act="begin">Start welding ▶ (${queue.length})</button>
+  </section>`);
+  SND.play('zip');
+  const lines = ['Every problem you missed left a crack in the hull.', 'You get the exact same problem again, same numbers. Solve it and the patch welds: +15 hull.', 'Miss it and the crack stays in the queue. No extra damage in here, so take your time.'];
+  ui.dlg = { lines, i:0, after:'', exprs:['worried', 'neutral', 'happy'] }; dlgStep();
+}
 function startModule(i){
   const m = MODS[i];
   if (st.cur && st.cur.m === i){ renderTask(); return; }
+  if (st.parked && st.parked.m === i){ st.cur = st.parked; st.parked = null; save(); renderTask(); return; }
   const queue = m.final ? buildFinal() : m.tasks.map(t => st.remix ? variantOf(t, false) : JSON.parse(JSON.stringify(t)));
   st.cur = { m:i, queue, pos:0, first:0, rer:0, ok:0, hints:0 };
   save();
@@ -512,14 +564,15 @@ function buildFinal(){
    TASK SCREEN
    ======================================================================== */
 const curTask = () => st.cur.queue[st.cur.pos];
-const DEVNAME = { med:'IV pump · dose input', air:'Scrubber console', fab:'Fabricator · print job', rx:'Reactor controls', sen:'Radar', h2o:'Tank controls', pow:'Battery bank', crg:'Label maker', eng:'Fuel console', fin:'Jump computer' };
-const VERB = { med:'Start pump', air:'Calibrate', fab:'Print', rx:'Engage core', h2o:'Flush tank', pow:'Transfer e⁻', crg:'Stamp label', eng:'Fire thrusters', fin:'Charge drive' };
+const DEVNAME = { bay:'Welding rig', med:'IV pump · dose input', air:'Scrubber console', fab:'Fabricator · print job', rx:'Reactor controls', sen:'Radar', h2o:'Tank controls', pow:'Battery bank', crg:'Label maker', eng:'Fuel console', fin:'Jump computer' };
+const VERB = { bay:'Weld patch', med:'Start pump', air:'Calibrate', fab:'Print', rx:'Engage core', h2o:'Flush tank', pow:'Transfer e⁻', crg:'Stamp label', eng:'Fire thrusters', fin:'Charge drive' };
 function renderTask(){
-  const c = st.cur, t = curTask(), m = MODS[c.m];
+  const c = st.cur, t = curTask(), m = modOf(c.m);
   ui = { t, done:false, hints:{}, confirm:null };
   ui.room = m.id;
   if (t.type === 'calc'){
     ui.b = CALC[t.gen].build(t.p);
+    if (FL[t.gen]) Object.assign(ui.b, FL[t.gen](t.p, ui.b));
     ui.phase = t.gen === 'hydrate' ? 'select' : t.gen === 'limit' ? 'balance' : 'answer';
     ui.sel = []; ui.flags = {};
     if (t.gen === 'limit'){ const L = LIM[t.p.r]; ui.coefs = L.L.concat(L.R).map(() => 1); }
@@ -531,13 +584,14 @@ function renderTask(){
   if (t.type === 'redox') ui.rx = { ox:null, red:null, prodTap:false };
   const chips = [];
   if (t.n) chips.push(`<span class="chip">Guide #${t.n}</span>`);
-  if (t.reroute) chips.push(`<span class="chip re">Rerouted</span>`); else if (!t.n) chips.push(`<span class="chip">New numbers</span>`);
-  const lit = m.final ? .6 : st.done.includes(m.id) ? 1 : Math.min(.85, .15 + .7 * c.pos / c.queue.length);
+  if (m.repair) chips.push(`<span class="chip re">Hull repair</span>`);
+  else if (t.reroute) chips.push(`<span class="chip re">Rerouted</span>`); else if (!t.n) chips.push(`<span class="chip">New numbers</span>`);
+  const lit = m.repair ? Math.max(.15, Math.min(.9, st.hull / 100)) : m.final ? .6 : st.done.includes(m.id) ? 1 : Math.min(.85, .15 + .7 * c.pos / c.queue.length);
   const charge = m.final ? (c.ok || 0) / c.queue.length : null;
   const extra = `<span class="stag">${m.name.toUpperCase()} · ${c.pos + 1}/${c.queue.length}</span><div class="schips">${chips.join('')}</div>` +
     (m.final ? `<div class="charge"><span class="lab">Jump drive</span><div class="cbar"><i style="width:${Math.round(100 * charge)}%"></i></div>${st.timer ? '<span class="timer" id="timer">--:--</span>' : ''}</div>` : '');
   show(`<section class="scr">
-    ${sceneHTML(m.id, lit, extra, m.final, charge)}
+    ${sceneHTML(m.id, lit, extra, m.final || (m.repair && st.hull < 35), charge)}
     ${talkHTML()}
     <div class="crt"><span class="lab">${t.type === 'calc' ? 'Incoming problem · paper required' : 'Incoming problem'}</span><div id="qtext"></div></div>
     <div id="body"></div>
@@ -547,7 +601,7 @@ function renderTask(){
   </section>`);
   document.getElementById('qtext').innerHTML = questionHTML();
   drawBody(); drawHints();
-  say(t.story || pick(FRESH), t.reroute ? 'smug' : m.final ? 'alarm' : 'neutral');
+  say(m.repair ? pick(REPAIRL) : (t.story || pick(FRESH)), t.reroute || m.repair ? 'smug' : m.final ? 'alarm' : 'neutral');
   if (m.final && st.timer) startTimer(t.type === 'calc' ? 180 : 45);
 }
 function questionHTML(){
@@ -573,7 +627,7 @@ function drawHints(){
   }
   const parts = [];
   if (ui.hints.rule) parts.push(ruleCard(t.topic));
-  if (ui.hints.setup) parts.push(`<div class="rule"><span class="lab">Setup</span><p>${F(ui.b.setup)}</p></div>`);
+  if (ui.hints.setup) parts.push(`<div class="rule"><span class="lab">Setup</span><p>${F(ui.b.setup)}</p>${ui.b.grids ? `<div style="display:grid;gap:8px;margin-top:10px">${ui.b.grids.map(g => factorGrid(g, true)).join('')}</div>` : ''}</div>`);
   document.getElementById('hintbox').innerHTML = parts.join('');
 }
 function drawBody(){
@@ -714,6 +768,53 @@ function redoxBody(){
 }
 
 /* ========================================================================
+   FACTOR-LABEL LAYOUTS: start amount × conversion factors = end amount
+   ======================================================================== */
+const finV = a => { const s = toSci(a.value, a.sf); return sci(s.m, s.e); };
+const FL = {
+  mass(p, b){
+    const s = S[p.s], mg = p.out === 'mg';
+    const cols = [[[sci(p.m, p.e), 'mol ' + s.f], null], [[String(s.mm), 'g ' + s.f], ['1', 'mol ' + s.f]]];
+    if (mg) cols.push([['1000', 'mg ' + s.f], ['1', 'g ' + s.f]]);
+    return { grids:[{cols, res:[finV(b.a), (mg ? 'mg ' : 'g ') + s.f], given:true}], notes:[b.work[0], b.work[b.work.length - 1]] };
+  },
+  particles(p, b){
+    const s = S[p.s];
+    return { grids:[{cols:[[[sci(p.m, p.e), 'g ' + s.f], null], [['1', 'mol ' + s.f], [String(s.mm), 'g ' + s.f]], [['6.022×10^23', s.p + ' ' + s.f], ['1', 'mol ' + s.f]]],
+      res:[finV(b.a), s.p + ' ' + s.f], given:true}], notes:[b.work[0], b.work[b.work.length - 1]] };
+  },
+  molp(p, b){
+    const s = S[p.s];
+    return { grids:[{cols:[[[sci(p.m, p.e), s.p + ' ' + s.f], null], [['1', 'mol ' + s.f], ['6.022×10^23', s.p + ' ' + s.f]]], res:[finV(b.a), 'mol ' + s.f], given:true}],
+      notes:[b.work[b.work.length - 1]] };
+  },
+  g2g(p, b){
+    const rx = RX[p.rx], A = S[p.a], B = S[p.b], cA = rx.c[p.a], cB = rx.c[p.b];
+    return { grids:[{cols:[[[p.g, 'g ' + A.f], null], [['1', 'mol ' + A.f], [String(A.mm), 'g ' + A.f]], [[String(cB), 'mol ' + B.f], [String(cA), 'mol ' + A.f]], [[String(B.mm), 'g ' + B.f], ['1', 'mol ' + B.f]]],
+      res:[finV(b.a), 'g ' + B.f], given:true}], notes:[`Balanced: ${rx.eq}. The mole ratio comes from the coefficients.`, b.work[0], b.work[b.work.length - 1]] };
+  },
+  limit(p, b){
+    const L = LIM[p.r], P = S[L.prod], c = L.sol, cP = c[L.pi], fA = +p.mA * 10 ** p.eA * cP / c[0], fB = +p.mB * 10 ** p.eB * cP / c[1];
+    const lim = Math.min(fA, fB), limName = fA <= fB ? L.names[0] : L.names[1];
+    const one = (m, e, f, k, v, nm) => ({label:'What ' + nm + ' can make', cols:[[[sci(m, e), 'mol ' + f], null], [[String(cP), 'mol ' + P.f], [String(c[k]), 'mol ' + f]]], res:[num(v, 4), 'mol ' + P.f], given:true});
+    return { grids:[one(p.mA, p.eA, L.L[0], 0, fA, L.names[0]), one(p.mB, p.eB, L.L[1], 1, fB, L.names[1]),
+      {label:limName[0].toUpperCase() + limName.slice(1) + ' makes less, so it is limiting. Convert its amount:', cols:[[[num(lim, 4), 'mol ' + P.f], null], [[String(P.mm), 'g ' + P.f], ['1', 'mol ' + P.f]]], res:[finV(b.a), 'g ' + P.f]}],
+      notes:[b.work[0], b.work[b.work.length - 1]] };
+  }
+};
+function factorGrid(g, hide){
+  const nums = [], dens = [], strike = new Set();
+  g.cols.forEach((c, i) => { if (c[0]) nums.push({i, u:c[0][1]}); if (c[1]) dens.push({i, u:c[1][1]}); });
+  dens.forEach(d => { const n = nums.find(x => !x.used && x.u === d.u && x.i !== d.i); if (n){ n.used = true; strike.add('n' + n.i); strike.add('d' + d.i); } });
+  const showV = i => !hide || (i === 0 && g.given);
+  const cell = (v, k, i) => v ? `<span class="flv">${showV(i) ? F(v[0]) : '?'}</span><span class="flu ${strike.has(k + i) ? 'x' : ''}">${F(v[1])}</span>` : '<span class="flv">&nbsp;</span>';
+  return `<div class="fl">${g.label ? `<span class="lab">${F(g.label)}</span>` : ''}<div class="flscroll"><div class="flg">
+    ${g.cols.map((c, i) => `<div class="flc ${i ? '' : 'first'}"><div class="fln">${cell(c[0], 'n', i)}</div><div class="fld">${cell(c[1], 'd', i)}</div></div>`).join('')}
+    <div class="flend"><div class="fleq">=</div><div class="flr"><span class="flv">${hide ? '?' : F(g.res[0])}</span><span class="flu">${F(g.res[1])}</span></div></div></div></div></div>`;
+}
+const flKey = '<p class="flkey"><b class="k1">Start</b> with what you\'re given. Multiply by factors so each unit on top cancels one on the bottom (<s>red</s>). <b class="k2">End</b> with the unit you want.</p>';
+
+/* ========================================================================
    GRADING
    ======================================================================== */
 function gradeSci(){
@@ -751,7 +852,11 @@ const listChecks = rows => `<ul class="checks">${rows.map(r => `<li><span class=
 const workList = lines => `<span class="lab">Worked solution · compare with your paper</span><ol class="work">${lines.map(l => `<li>${F(l)}</li>`).join('')}</ol>`;
 function solutionHTML(t){
   switch (t.type){
-    case 'calc': return `<p>Key: <b>${F(ansText(ui.b.a))}</b></p>${workList(ui.b.work)}`;
+    case 'calc': {
+      if (!ui.b.grids) return `<p>Key: <b>${F(ansText(ui.b.a))}</b></p>${workList(ui.b.work)}`;
+      return `<p>Key: <b>${F(ansText(ui.b.a))}</b></p><span class="lab">Worked solution · set it up like this</span>${ui.b.grids.map(g => factorGrid(g)).join('')}${flKey}
+        <ol class="work">${ui.b.notes.map(l => `<li>${F(l)}</li>`).join('')}</ol>`;
+    }
     case 'numunit': return `<p>Key: <b>${t.v.toFixed(2)} ${t.unit}</b>. ${F(t.why)}</p>`;
     case 'balance': { const idx = t.L.concat(t.R).indexOf(t.ask); return `<p>Balanced: <b>${F(balancedText(t.L, t.R, t.sol))}</b></p><p>Coefficient of ${F(t.ask)}: <b>${t.sol[idx]}</b></p>`; }
     case 'nums': return `<p>Key: <b>${t.a[0]} mol</b> reactants, <b>${t.a[1]} mol</b> products. ${F(t.why)}</p>`;
@@ -827,22 +932,27 @@ const OKL = ['Repair holds. Nice.', 'Clean. Exactly what the key says.', 'That\'
 const MINORL = ['The number is right, but the format isn\'t. On the quiz that still costs you.', 'So close. Check sig figs, notation, and units.'];
 const FAILL = ['Fault detected. Compare your paper with the worked solution.', 'That\'s off. Find the step where your work splits from mine.', 'Not this time. Read the solution, then we go again with new numbers.'];
 function resolve(ok, sev, html){
-  const c = st.cur, t = ui.t, m = MODS[c.m];
+  const c = st.cur, t = ui.t, m = modOf(c.m);
   ui.done = true; ui.lastOk = ok; stopTimer();
   const rankBefore = rankIdx(st.xp);
   const s = st.stats[t.topic] || (st.stats[t.topic] = {n:0, ok:0}); s.n++; if (ok) s.ok++;
-  if (!t.reroute && !m.final && !st.done.includes(m.id)){ st.score.n++; if (ok) st.score.ok++; }
+  if (!t.reroute && !m.final && !m.repair && !st.done.includes(m.id)){ st.score.n++; if (ok) st.score.ok++; }
   const earned = []; let extra = '';
   const o = mainScene(); const now = performance.now() / 1000; const r = sceneRect();
   if (ok){
     c.ok = (c.ok || 0) + 1; if (!t.reroute) c.first++;
     st.streak++; st.best = Math.max(st.best, st.streak);
-    const gain = t.reroute ? 4 : 10, bonus = st.streak >= 5 ? 10 : st.streak >= 3 ? 5 : 0;
+    const gain = t.reroute || m.repair ? 4 : 10, bonus = st.streak >= 5 ? 10 : st.streak >= 3 ? 5 : 0;
     st.energy += gain + bonus; st.xp += gain + bonus;
     if (t.type === 'calc'){ st.calcStreak++; if (st.calcStreak >= 5) earned.push('sniper'); }
     earned.push('first'); if (st.streak >= 3) earned.push('s3'); if (st.streak >= 5) earned.push('s5'); if (st.streak >= 10) earned.push('s10');
     if (t.reroute) earned.push('comeback');
     extra = `<p class="gain">+${gain} energy${bonus ? ` · combo x${st.streak} +${bonus}` : ''}</p>`;
+    if (m.repair){
+      const before = st.hull; st.hull = Math.min(100, st.hull + 15); st.wrongs = st.wrongs.filter(w => w.id !== t.id);
+      earned.push('welder');
+      extra += `<p class="gain" style="color:var(--ba)">Patch welded · +${st.hull - before} hull (now ${st.hull}%)</p>`;
+    }
     if (o){ o.okUntil = now + 3; o.live = false; if (m.final) o.charge = c.ok / c.queue.length; }
     SND.play(bonus ? 'combo' : 'ok'); flash('green');
     fx.burst(r.left + r.width / 2, r.top + r.height / 2, 30, [C.na, C.cu, C.ba, C.white]);
@@ -853,10 +963,17 @@ function resolve(ok, sev, html){
     const bar = view.querySelector('.cbar i'); if (bar) bar.style.width = Math.round(100 * c.ok / c.queue.length) + '%';
   } else {
     st.streak = 0; if (t.type === 'calc') st.calcStreak = 0;
-    const d = sev === 'minor' ? 6 : 15; st.hull -= d; st.missed[t.topic] = (st.missed[t.topic] || 0) + 1;
-    extra = `<p class="dmg">−${d} hull${sev === 'minor' ? ' · formatting only' : ''}</p>`;
-    if (st.hull <= 0){ st.patches++; st.hull = 35; extra += `<p class="dmg">Hull failure! Emergency patch #${st.patches}. Hull back to 35.</p>`; }
-    if ((t.depth || 0) < 2){ c.queue.push(variantOf(t, true)); c.rer++; extra += `<p class="dim" style="font-size:15px">MOLLY queued a rerouted version with new values.</p>`; }
+    st.missed[t.topic] = (st.missed[t.topic] || 0) + 1;
+    if (m.repair){
+      extra = `<p class="dmg">Patch didn't hold. This crack stays in the repair bay.</p>`;
+    } else {
+      const d = sev === 'minor' ? 6 : 15; st.hull -= d;
+      extra = `<p class="dmg">−${d} hull${sev === 'minor' ? ' · formatting only' : ''}</p>`;
+      if (st.hull <= 0){ st.patches++; st.hull = 35; extra += `<p class="dmg">Hull failure! Emergency patch #${st.patches}. Hull back to 35.</p>`; }
+      addWrong(t);
+      extra += `<p class="dim" style="font-size:15px">Added to the repair bay. Re-solve it there to win the hull back.</p>`;
+      if ((t.depth || 0) < 2){ c.queue.push(variantOf(t, true)); c.rer++; extra += `<p class="dim" style="font-size:15px">MOLLY also queued a rerouted version with new values.</p>`; }
+    }
     if (o){ o.failUntil = now + 1.2; o.live = false; }
     SND.play(sev === 'minor' ? 'minor' : 'fail'); flash('red'); shake();
     fx.burst(r.left + r.width / 2, r.top + r.height / 2, 24, [C.sr, C.orange, C.na]);
@@ -916,7 +1033,20 @@ function stopTimer(){ if (ui && ui.tint){ clearInterval(ui.tint); ui.tint = null
 function nextTask(){
   const c = st.cur; c.pos++;
   if (c.pos < c.queue.length){ save(); renderTask(); return; }
-  const m = MODS[c.m], tot = c.queue.filter(x => !x.reroute).length;
+  const m = modOf(c.m), tot = c.queue.filter(x => !x.reroute).length;
+  if (m.repair){
+    const fixed = c.ok || 0; st.cur = st.parked || null; st.parked = null; save();
+    show(`<section class="scr">
+      ${sceneHTML('bay', Math.max(.2, st.hull / 100), `<span class="stag">REPAIR BAY · HULL ${st.hull}%</span>`)}
+      <h1 class="h1">Welding done</h1>
+      ${talkHTML()}
+      <div class="stats"><div class="stat"><span class="lab">Welded</span><b>${fixed}/${tot}</b></div><div class="stat"><span class="lab">Hull</span><b>${st.hull}%</b></div><div class="stat"><span class="lab">Cracks left</span><b>${st.wrongs.length}</b></div></div>
+      <div class="stack">${st.wrongs.length ? `<button class="pb" data-act="repair">Weld more (${Math.min(5, st.wrongs.length)})</button>` : ''}<button class="pb go big" data-act="map">Back to map ▶</button></div>
+    </section>`);
+    if (fixed) SND.play('power');
+    say(!fixed ? 'None held this time. Read the worked solutions and come back.' : st.wrongs.length ? `${fixed} patch${fixed > 1 ? 'es' : ''} welded. ${st.wrongs.length} crack${st.wrongs.length > 1 ? 's' : ''} left.` : 'Every crack is sealed. That\'s the stuff you used to miss, now fixed.', fixed ? 'happy' : 'worried');
+    return;
+  }
   const first = !st.done.includes(m.id);
   if (first) st.done.push(m.id);
   const res = { first:c.first, tot, rer:c.rer };
@@ -1067,6 +1197,7 @@ document.addEventListener('click', e => {
       if (ui.confirm !== 'remix'){ ui.confirm = 'remix'; b.textContent = 'Tap again to remix'; break; }
       { const snd = st.sound, xp = st.xp, badges = st.badges, best = st.best; st = fresh(); Object.assign(st, {sound:snd, xp, badges, best, remix:true}); } save(); ui = {}; renderBoot(); break;
     case 'map': renderMap(); break;
+    case 'repair': startRepair(); break;
     case 'mod': {
       const i = +b.dataset.i;
       if (!unlocked(i)){ SND.play('jam'); b.classList.add('shk'); setTimeout(() => b.classList.remove('shk'), 300); say(`That room is sealed. Fix the ${MODS[i - 1].name} first.`, 'smug'); break; }
