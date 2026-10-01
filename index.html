@@ -2017,7 +2017,8 @@ function renderEnding(res, earned){
   award(earned);
 }
 function renderReport(){
-  const rows = Object.keys(TOPICS).map(k => {
+  const keys = [...new Set([...MODS.flatMap(m => m.topics), ...Object.keys(st.stats)])].filter(k => TOPICS[k]);
+  const rows = keys.map(k => {
     const s = st.stats[k], pct = s && s.n ? Math.round(100 * s.ok / s.n) : null;
     const col = pct === null ? 'var(--line)' : pct >= 80 ? 'var(--ba)' : pct >= 60 ? 'var(--na)' : 'var(--sr)';
     const on = pct === null ? 0 : Math.round(pct / 10);
@@ -2027,6 +2028,7 @@ function renderReport(){
   const weak = rows.filter(r => r.pct !== null && r.pct < 80);
   show(`<section class="scr">
     <h1 class="h1">Study report</h1>
+    <p class="dim" style="margin:0">${CAMP.title} · accuracy per topic, counting every attempt (reroutes and ${W().bay} included).</p>
     <div class="win rep">${rows.map(r => r.html).join('')}</div>
     ${weak.length ? `<span class="lab">Review these manual pages</span>${weak.map(r => ruleCard(r.k)).join('')}` : (Object.keys(st.stats).length ? '<p>No weak topics so far.</p>' : '')}
     <div class="row"><button class="pb go" data-act="map">Map</button><button class="pb" data-act="title">Title</button></div>
