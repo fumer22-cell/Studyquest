@@ -282,7 +282,7 @@ const TOPICS = {
   name:{name:'Naming multi-charge ions', rule:'Old system: -ous means the lower charge, -ic means the higher charge. Modern system: the Roman numeral gives the charge. Latin roots: iron → ferr-, copper → cupr-, lead → plumb-, tin → stann-.'}
 };
 const CLASSES = [['comb','Combination'],['decomp','Decomposition'],['single','Single-replacement'],['precip','Precipitation'],['acid','Acid-base']];
-const UNITS = ['g','mg','mol','molecules','atoms','g/mol','amu'];
+const UNITS = ['g','mg','µg','mol','molecules','atoms','g/mol','amu','%','per mol'];
 
 /* ---------- The study guide, as station tasks ---------- */
 let MODS = [

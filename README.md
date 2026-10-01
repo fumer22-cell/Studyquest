@@ -1,9 +1,10 @@
 # Chem Quests
 
-Two campaigns share one engine:
+Three campaigns share one engine:
 
 - **Avogadro Station**: the Chem Quiz Study Guide (moles, reactions, naming).
 - **Valence Spire**: the CHE1011 Unit 2 practice test, all 82 questions (Lewis structures, bonding, polarity, naming, moles, stoichiometry, reaction types).
+- **Temple of the Mole**: the CHE1011 Chapters 3 & 4 unit test study guide, 78 tasks built almost entirely without multiple choice: a dot builder, a Lewis-structure workbench, typed names and formulas, an equation writer (formulas → balance → phases → type), and paper calculations.
 
 ## Avogadro Station
 
@@ -23,5 +24,5 @@ effects, and an escape sequence with an optional exam timer.
 
 Open `index.html` in any browser. Source lives in `src/parts/`:
 `a-shell.html` (styles + page shell), `b-data.js` (study-guide problems, generators,
-grading data), `c-game.js` (rendering, sound, game logic), `d-tower.js` (Valence Spire questions, tower art, campaign definitions), `e-init.js` (startup). Run `./build.sh` to
+grading data), `c-game.js` (rendering, sound, game logic), `d-tower.js` (Valence Spire questions, tower art, campaign definitions), `f-temple.js` (Temple of the Mole content plus the built-answer types), `e-init.js` (startup). Run `./build.sh` to
 regenerate `src/game.html` (artifact fragment) and `index.html`.

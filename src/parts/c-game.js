@@ -205,8 +205,8 @@ const DEV = {
   }
 };
 function drawRoom(ctx, id, t, o){
-  const k = K(ctx), W = 80, H = 40, stone = STONE.has(id);
-  if (stone) stoneBase(k, ctx, t, o, id); else {
+  const k = K(ctx), W = 80, H = 40, stone = STONE.has(id) || JUNGLE.has(id);
+  if (JUNGLE.has(id)) jungleBase(k, ctx, t, o); else if (stone) stoneBase(k, ctx, t, o, id); else {
   k.r(0, 0, W, H, C.wall);
   for (let x = 0; x < W; x += 16) k.r(x, 4, 1, 30, C.seam);
   k.r(0, 12, W, 1, C.seam);
@@ -340,8 +340,9 @@ function mount(){
     const o = c._o = { lit:+(c.dataset.lit || 0), alarm:c.dataset.alarm === '1', charge:c.dataset.charge != null ? +c.dataset.charge : null };
     const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawRoom(ctx, c.dataset.room, t, o)});
   });
-  view.querySelectorAll('canvas[data-molly]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => (CAMP.id === 'tower' ? drawOwl : drawMolly)(ctx, t)}); });
+  view.querySelectorAll('canvas[data-molly]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => (CAMP.id === 'tower' ? drawOwl : CAMP.id === 'temple' ? drawPolly : drawMolly)(ctx, t)}); });
   view.querySelectorAll('canvas[data-art="ship"]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawShip(ctx, t, +c.dataset.lit)}); });
+  view.querySelectorAll('canvas[data-art="temple"]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawTemple(ctx, t, +c.dataset.lit)}); });
   view.querySelectorAll('canvas[data-art="tower"]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawTower(ctx, t, +c.dataset.lit)}); });
   view.querySelectorAll('canvas[data-art="tail"]').forEach(c => { const ctx = c.getContext('2d'); anims.add({el:c, draw:t => drawTail(ctx, t, c.dataset.on === '1')}); });
   view.querySelectorAll('canvas[data-medal]').forEach(c => drawMedal(c.getContext('2d'), c.dataset.medal, c.dataset.lock === '1'));
@@ -438,7 +439,7 @@ function renderTitle(){
     const c = CAMPS[id], sm = campSummary(id), k = ui.confirm;
     return `<div class="win camp">
       <canvas data-art="${c.art}" data-lit="${sm.done / sm.total}" class="pix campart" width="48" height="64" aria-hidden="true"></canvas>
-      <div class="campinfo"><h2 class="camph">${c.title}</h2><p class="dim">${c.tag}</p><span class="lab">${sm.done}/${sm.total} ${id === 'tower' ? 'floors' : 'systems'} ${c.w.online}${sm.finished ? ' · complete' : ''}</span>
+      <div class="campinfo"><h2 class="camph">${c.title}</h2><p class="dim">${c.tag}</p><span class="lab">${sm.done}/${sm.total} ${id === 'tower' ? 'floors' : id === 'temple' ? 'chambers' : 'systems'} ${c.w.online}${sm.finished ? ' · complete' : ''}</span>
       <div class="row">
         <button class="pb go" data-act="camp" data-c="${id}">${sm.run ? '▶ Continue' : '▶ Start'}</button>
         ${sm.run ? `<button class="pb sm" data-act="new" data-c="${id}">${k === 'new:' + id ? 'Tap again to erase' : 'New game'}</button>` : ''}
@@ -448,7 +449,7 @@ function renderTitle(){
   show(`<section class="title">
     <h1 class="logo"><span class="l1">CHEM</span><span class="l2">QUESTS</span></h1>
     <p class="tag">Pick a campaign</p>
-    <div class="camps">${card('station')}${card('tower')}</div>
+    <div class="camps">${card('station')}${card('tower')}${card('temple')}</div>
     <ul class="kit"><li>Paper + pencil</li><li>Calculator</li><li>~45 min each</li></ul>
   </section>`);
 }
@@ -480,7 +481,7 @@ function renderMap(){
     const lit = on ? 1 : un ? .3 : 0;
     const mid = (st.cur && st.cur.m === i) || (st.parked && st.parked.m === i);
     const stt = on ? 'online' : un ? (mid ? 'in repair' : 'broken') : 'sealed';
-    return `<button class="room ${cls} ${m.final || id === 'eng' || CAMP.shape === 'tower' ? 'span' : ''}" data-act="mod" data-i="${i}" aria-label="${m.name}: ${stt}">
+    return `<button class="room ${cls} ${m.final || id === 'eng' || CAMP.shape !== 'ship' ? 'span' : ''}" data-act="mod" data-i="${i}" aria-label="${m.name}: ${stt}">
       <canvas data-room="${id}" data-lit="${lit}" ${m.final && !on ? 'data-alarm="1"' : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>
       <span class="rlab"><i class="led"></i>${i + 1}. ${m.name} · ${stt}</span></button>`;
   };
@@ -491,7 +492,7 @@ function renderMap(){
       <div class="nose"></div>
       <div class="hullbox"><div class="trunk"><i style="height:${Math.round(100 * n / MODS.length)}%"></i></div>
         <div class="rooms">${CAMP.layout.flat().map(cell).join('')}</div></div>
-      ${CAMP.shape === 'tower' ? '<div class="ground"></div>' : `<div class="tail"><canvas data-art="tail" data-on="${st.done.includes('eng') ? 1 : 0}" class="pix" width="80" height="16" aria-hidden="true"></canvas></div>`}
+      ${CAMP.shape !== 'ship' ? '<div class="ground"></div>' : `<div class="tail"><canvas data-art="tail" data-on="${st.done.includes('eng') ? 1 : 0}" class="pix" width="80" height="16" aria-hidden="true"></canvas></div>`}
     </div>
     <button class="room bayroom ${st.wrongs.length ? 'st-next' : 'st-online'}" data-act="repair" aria-label="${W().Bay}: ${st.wrongs.length} ${W().crack}s">
       <canvas data-room="${CAMP.repair.id}" data-lit="${Math.max(.2, Math.min(1, st.hull / 100))}" ${st.hull < 35 ? 'data-alarm="1"' : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>
@@ -583,6 +584,7 @@ function renderTask(){
   if (t.type === 'nums') ui.nv = [0, 0];
   if (t.type === 'net') ui.net = { L:t.L.map(x => ({...x, split:false})), R:t.R.map(x => ({...x, split:false})), struck:{}, solidTap:false };
   if (t.type === 'redox') ui.rx = { ox:null, red:null, prodTap:false };
+  if (XT[t.type] && XT[t.type].init) XT[t.type].init(t);
   const chips = [];
   if (t.n) chips.push(`<span class="chip">${CAMP.id === 'tower' ? 'Test' : 'Guide'} #${t.n}</span>`);
   if (m.repair) chips.push(`<span class="chip re">${W().Bay}</span>`);
@@ -676,6 +678,7 @@ function drawBody(){
         ${ui.done ? '' : `<button class="pb go big" data-act="submit">${VERB[ui.room] || 'Stamp label'} ▶</button>`}</div>`; break;
     case 'net': h = netBody(); break;
     case 'redox': h = redoxBody(); break;
+    default: if (XT[t.type]) h = XT[t.type].body(t, dis, verb);
   }
   body.innerHTML = h;
 }
@@ -834,10 +837,11 @@ function gradeSci(){
   const digits = ms.replace('.', '').replace(/^0+/, '');
   const usf = ms.includes('.') ? digits.length : (digits.replace(/0+$/, '').length || 1);
   const normd = a.anyForm || (mv >= 1 && mv < 10);
-  const ts = toSci(a.value, a.sf), ev = parseFloat(ts.m) * 10 ** ts.e, ulp = 10 ** (ts.e - a.sf + 1);
+  const sfOk0 = usf === a.sf || (a.sfAlt || []).includes(usf), sfUse = sfOk0 ? usf : a.sf;
+  const ts = toSci(a.value, sfUse), ev = parseFloat(ts.m) * 10 ** ts.e, ulp = 10 ** (ts.e - sfUse + 1);
   const uUlp = 10 ** (Math.floor(Math.log10(Math.abs(uv))) - usf + 1);
   const close = Math.abs(uv - a.value) <= Math.max(.006 * Math.abs(a.value), .55 * uUlp, 1.01 * ulp);
-  const sfOk = usf === a.sf, exact = Math.abs(uv - ev) <= 1.01 * ulp, valOk = close && (!sfOk || exact), unitOk = k.unit === a.unit;
+  const sfOk = sfOk0, exact = Math.abs(uv - ev) <= 1.01 * ulp, valOk = close && (!sfOk || exact), unitOk = k.unit === a.unit || (a.unitAlt || []).includes(k.unit);
   let vDet = 'Matches the answer key.';
   if (!close){
     const ratio = uv / a.value, p = Math.round(Math.log10(Math.abs(ratio)));
@@ -875,6 +879,7 @@ function solutionHTML(t){
     case 'text': return `<p>${t.fields.map(f => `${F(f.label)}: <b>${F(f.disp || f.accept[0])}</b>`).join('<br>')}</p><p>${F(t.why)}</p>`;
     case 'net': return `<p>Net ionic: <b>${F(t.net)}</b></p><p>Spectators: <b>${F(t.spect.join(', '))}</b></p>`;
     case 'redox': return `<p>Oxidized: <b>${F(t.L[t.ox])}</b>. Reduced: <b>${F(t.L[t.red])}</b>.</p><p>${F(t.why)}</p>`;
+    default: if (XT[t.type]) return XT[t.type].solution(t);
   }
   return '';
 }
@@ -930,6 +935,7 @@ function submit(){
       html = `${X.prodTap ? '<p>You picked a product. Pick from the reactants only.</p>' : ''}${solutionHTML(t)}`;
       break;
     }
+    default: if (XT[t.type]){ const r = XT[t.type].grade(t); if (r.err) return setErr(r.err); ok = r.ok; sev = r.sev || 'major'; html = r.html; }
   }
   resolve(ok, sev, html);
 }
@@ -1204,7 +1210,7 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const act = b.dataset.act;
   if (act !== 'new' && act !== 'remix') ui.confirm = null;
-  if (!['key', 'dlg-next', 'unit', 'coef', 'nstrike', 'nsplit', 'rpick', 'cart', 'nv', 'pickc', 'submit'].includes(act)) SND.play('tap');
+  if (!['key', 'dlg-next', 'unit', 'coef', 'nstrike', 'nsplit', 'rpick', 'cart', 'nv', 'pickc', 'submit', 'fnum', 'fpick', 'spick', 'dside', 'atomlp', 'bondo', 'phase', 'rtype', 'eqform'].includes(act)) SND.play('tap');
   switch (act){
     case 'title': renderTitle(); break;
     case 'continue': renderMap(); break;
@@ -1261,7 +1267,7 @@ document.addEventListener('click', e => {
     case 'next': nextTask(); break;
     case 'coef': {
       const i = +b.dataset.i; ui.coefs[i] = Math.min(20, Math.max(1, ui.coefs[i] + +b.dataset.d)); SND.play('key');
-      const t = ui.t, L = t.type === 'balance' ? t : LIM[t.p.r];
+      const t = ui.t, L = (t.type === 'balance' || t.type === 'eq') ? t : LIM[t.p.r];
       const before = balState(L.L, L.R, ui.coefs).bal;
       document.getElementById('balbox').innerHTML = reactorHTML(L.L, L.R, ui.coefs, false);
       if (before) SND.play('pop');
@@ -1300,12 +1306,13 @@ document.addEventListener('click', e => {
       SND.play('key'); drawBody(); break;
     }
     case 'rreset': ui.rx.ox = null; ui.rx.red = null; drawBody(); break;
+    default: if (XACT[act]) XACT[act](b);
   }
 });
 document.getElementById('sheet').addEventListener('click', e => { if (e.target.id === 'sheet') e.currentTarget.hidden = true; });
 
 /* Data sheet */
-const PT = [['H','1.008'],['C','12.01'],['N','14.01'],['O','16.00'],['F','19.00'],['Na','22.99'],['Mg','24.31'],['Al','26.98'],['S','32.07'],['Cl','35.45'],['K','39.10'],['Ca','40.08'],['Fe','55.85'],['Ni','58.69'],['Cu','63.55'],['Zn','65.38'],['Br','79.90'],['Ag','107.87'],['Sn','118.71'],['I','126.90'],['Ba','137.33'],['Pb','207.2']];
+const PT = [['H','1.008'],['He','4.003'],['Li','6.94'],['B','10.81'],['C','12.01'],['N','14.01'],['O','16.00'],['F','19.00'],['Na','22.99'],['Mg','24.31'],['Al','26.98'],['P','30.97'],['S','32.07'],['Cl','35.45'],['K','39.10'],['Ca','40.08'],['Fe','55.85'],['Co','58.93'],['Ni','58.69'],['Cu','63.55'],['Zn','65.38'],['Br','79.90'],['Ag','107.87'],['Sn','118.71'],['I','126.90'],['Ba','137.33'],['Pb','207.2']];
 document.getElementById('ptable').innerHTML = PT.map(([s, m]) => `<div class="pc"><b>${s}</b><span>${m}</span></div>`).join('');
 
 window.__avogadro = { CALC, toSci, sfOf, parseF, balState, get ORIG(){ return ORIG; }, EXTRA, variantOf };
