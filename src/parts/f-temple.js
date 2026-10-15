@@ -718,7 +718,7 @@ function drawTemple(ctx, t, lit){
 
 /* ---------- Campaign ---------- */
 BADGES.push({id:'idol', name:'Idol Recovered', d:'Escape the Temple of the Mole with the golden idol.', c:GOLD});
-CAMPS.temple = { id:'temple', title:'Temple of the Mole', tag:'Unit test study guide · Chapters 3 & 4', mods:TEMPLE_MODS, pal:'POLLY', art:'temple',
+CAMPS.temple = { id:'temple', archived:true, title:'Temple of the Mole', tag:'Unit test study guide · Chapters 3 & 4', mods:TEMPLE_MODS, pal:'POLLY', art:'temple',
   layout:[['hall'], ['glyph'], ['spring'], ['shapes'], ['masons'], ['sculpt'], ['echo'], ['count'], ['treas'], ['altar'], ['grotto'], ['storm'], ['sanctum'], ['idol']], shape:'temple',
   repair:{ id:'camp', code:'Cf', name:'Campfire', topics:[], repair:true, tasks:[] },
   repairLines:['This one burned your torch down before. Same problem. Get it right.', 'An old ember. Same numbers as before. Take your time on paper.', 'Squawk! You missed this one. Again, with feeling.'],

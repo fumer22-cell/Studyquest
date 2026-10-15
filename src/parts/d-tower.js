@@ -469,7 +469,7 @@ function drawTower(ctx, t, lit){
 
 /* ---------- Campaigns ---------- */
 const CAMPS = {
-  station:{ id:'station', title:'Avogadro Station', tag:'Chem quiz · moles, reactions, naming', mods:MODS, pal:'MOLLY', art:'ship',
+  station:{ id:'station', archived:true, title:'Avogadro Station', tag:'Chem quiz · moles, reactions, naming', mods:MODS, pal:'MOLLY', art:'ship',
     layout:[['fin'], ['med', 'air'], ['fab', 'rx'], ['sen', 'h2o'], ['pow', 'crg'], ['eng']], shape:'ship',
     repair:{ id:'bay', code:'Rp', name:'Repair Bay', topics:[], repair:true, tasks:[] },
     repairLines:['This one cracked the hull before. Same numbers. Weld it shut.', 'Old crack, same problem. Take your time on paper.', 'You missed this one earlier. Show it who\'s boss.'],
@@ -490,7 +490,7 @@ const CAMPS = {
       return ['Barely made it', ['We made the jump. Barely.', 'Go through the study report, reread those manual pages, and run a remix. The numbers change every time.']];
     }
   },
-  tower:{ id:'tower', title:'Valence Spire', tag:'Unit 2 practice test · bonding, naming, moles', mods:TOWER_MODS, pal:'VAL', art:'tower',
+  tower:{ id:'tower', archived:true, title:'Valence Spire', tag:'Unit 2 practice test · bonding, naming, moles', mods:TOWER_MODS, pal:'VAL', art:'tower',
     layout:[['top'], ['circ'], ['forge'], ['mine'], ['vault'], ['apo'], ['scr'], ['obs'], ['lab'], ['lib'], ['gate']], shape:'tower',
     repair:{ id:'shrine', code:'Ms', name:'Mending Shrine', topics:[], repair:true, tasks:[] },
     repairLines:['This one cracked your ward before. Same numbers. Mend it.', 'An old fracture, same problem as before. Take your time on paper.', 'You missed this one earlier. Cast it again.'],
@@ -514,17 +514,17 @@ const CAMPS = {
 };
 let CAMP = CAMPS.station;
 const W = () => CAMP.w;
-const CAMP_FIELDS = ['hull', 'energy', 'patches', 'done', 'stats', 'score', 'missed', 'cur', 'finished', 'wrongs', 'parked', 'remix'];
-function campFresh(){ const f = fresh(), o = {}; CAMP_FIELDS.forEach(k => { o[k] = f[k]; }); return o; }
+const CAMP_FIELDS = ['hull', 'energy', 'patches', 'done', 'stats', 'score', 'missed', 'cur', 'finished', 'wrongs', 'parked', 'remix', 'timer'];
+function campFresh(id){ const f = fresh(), o = {}; CAMP_FIELDS.forEach(k => { o[k] = f[k]; }); const c = CAMPS[id || (st && st.camp) || 'station']; if (c && c.timerDefault) o.timer = true; return o; }
 function applyCamp(){ CAMP = CAMPS[st.camp] || CAMPS.station; MODS = CAMP.mods; ORIG = MODS.flatMap(m => m.tasks); }
 function switchCamp(id){
   if ((st.camp || 'station') === id){ applyCamp(); return; }
   st.saved = st.saved || {};
   const o = {}; CAMP_FIELDS.forEach(k => { o[k] = st[k]; }); st.saved[st.camp || 'station'] = o;
-  Object.assign(st, st.saved[id] ? JSON.parse(JSON.stringify(st.saved[id])) : campFresh()); st.camp = id;
+  Object.assign(st, st.saved[id] ? JSON.parse(JSON.stringify(st.saved[id])) : campFresh(id)); st.camp = id;
   applyCamp(); save();
 }
 function campSummary(id){
-  const s = (st.camp || 'station') === id ? st : (st.saved && st.saved[id]) || campFresh();
+  const s = (st.camp || 'station') === id ? st : (st.saved && st.saved[id]) || campFresh(id);
   return { done:(s.done || []).length, total:CAMPS[id].mods.length, run:(s.done || []).length > 0 || !!s.cur, finished:!!s.finished };
 }

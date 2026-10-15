@@ -37,8 +37,8 @@ function randPlain(){
 }
 function toSci(v, sf){
   if (v === 0) return { m: (0).toFixed(sf - 1), e: 0 };
-  let e = Math.floor(Math.log10(Math.abs(v))); let ms = (v / 10 ** e).toFixed(sf - 1);
-  if (Math.abs(parseFloat(ms)) >= 10){ e++; ms = (v / 10 ** e).toFixed(sf - 1); }
+  let e = Math.floor(Math.log10(Math.abs(v))); let ms = (v / 10 ** e * (1 + 1e-12)).toFixed(sf - 1);
+  if (Math.abs(parseFloat(ms)) >= 10){ e++; ms = (v / 10 ** e * (1 + 1e-12)).toFixed(sf - 1); }
   if (Math.abs(parseFloat(ms)) < 1){ e--; ms = (v / 10 ** e).toFixed(sf - 1); }
   return { m: ms, e };
 }

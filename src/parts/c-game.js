@@ -358,7 +358,13 @@ const mainScene = () => { const c = view.querySelector('.scene canvas[data-room]
 function sceneRect(){ const c = view.querySelector('.scene canvas'); return c ? c.getBoundingClientRect() : {left:innerWidth / 2, top:120, width:0, height:0}; }
 function shake(){ if (reduced()) return; const a = document.getElementById('app'); a.classList.remove('shake'); void a.offsetWidth; a.classList.add('shake'); }
 function flash(col){ const f = document.getElementById('flash'); f.className = ''; void f.offsetWidth; f.className = col + ' on'; }
+let toastNext = 0;
 function toast(title, text, medal){
+  const now = Date.now(), wait = Math.max(0, toastNext - now); toastNext = now + wait + 1600;
+  if (wait) { setTimeout(() => toast2(title, text, medal), wait); return; }
+  toast2(title, text, medal);
+}
+function toast2(title, text, medal){
   const d = document.createElement('div'); d.className = 'toast';
   d.innerHTML = `${medal ? `<canvas class="pix" width="12" height="14"></canvas>` : ''}<div><b>${title}</b><span>${F(text)}</span></div>`;
   document.getElementById('toasts').appendChild(d);
@@ -439,17 +445,19 @@ function renderTitle(){
     const c = CAMPS[id], sm = campSummary(id), k = ui.confirm;
     return `<div class="win camp">
       <canvas data-art="${c.art}" data-lit="${sm.done / sm.total}" class="pix campart" width="48" height="64" aria-hidden="true"></canvas>
-      <div class="campinfo"><h2 class="camph">${c.title}</h2><p class="dim">${c.tag}</p><span class="lab">${sm.done}/${sm.total} ${id === 'tower' ? 'floors' : id === 'temple' ? 'chambers' : 'systems'} ${c.w.online}${sm.finished ? ' · complete' : ''}</span>
+      <div class="campinfo"><h2 class="camph">${c.title}</h2><p class="dim">${c.tag}</p><span class="lab">${sm.done}/${sm.total} ${c.unitWord || (id === 'tower' ? 'floors' : id === 'temple' ? 'chambers' : 'systems')} ${c.w.online}${sm.finished ? ' · complete' : ''}</span>
       <div class="row">
         <button class="pb go" data-act="camp" data-c="${id}">${sm.run ? '▶ Continue' : '▶ Start'}</button>
         ${sm.run ? `<button class="pb sm" data-act="new" data-c="${id}">${k === 'new:' + id ? 'Tap again to erase' : 'New game'}</button>` : ''}
         <button class="pb sm" data-act="remix" data-c="${id}">${k === 'remix:' + id ? 'Tap again to remix' : 'Remix'}</button>
       </div></div></div>`;
   };
+  const ids = Object.keys(CAMPS), live = ids.filter(id => !CAMPS[id].archived), arch = ids.filter(id => CAMPS[id].archived);
   show(`<section class="title">
     <h1 class="logo"><span class="l1">CHEM</span><span class="l2">QUESTS</span></h1>
-    <p class="tag">Pick a campaign</p>
-    <div class="camps">${card('station')}${card('tower')}${card('temple')}</div>
+    <p class="tag">${live.length > 1 ? 'Pick a campaign' : 'Current exam'}</p>
+    <div class="camps">${live.map(card).join('')}</div>
+    ${arch.length ? `<details class="archive"><summary class="pb sm">Archived campaigns (${arch.length})</summary><p class="dim" style="font-size:15px;margin:10px 0">Earlier exams. Still playable, progress kept.</p><div class="camps">${arch.map(card).join('')}</div></details>` : ''}
     <ul class="kit"><li>Paper + pencil</li><li>Calculator</li><li>~45 min each</li></ul>
   </section>`);
 }
@@ -476,6 +484,7 @@ function renderBoot(){
 function renderMap(){
   const n = st.done.length;
   const cell = id => {
+    if (id[0] === '#') return `<div class="legh">${F(id.slice(1))}</div>`;
     const i = MODS.findIndex(m => m.id === id), m = MODS[i], on = st.done.includes(id), un = unlocked(i);
     const cls = on ? 'st-online' : un ? 'st-next' : 'st-locked';
     const lit = on ? 1 : un ? .3 : 0;
@@ -544,7 +553,7 @@ function startModule(i){
     ${talkHTML()}
     <div id="dlgbtns"></div>
     ${m.final ? `<div class="win dev"><div class="devh"><span>Exam timer</span><span>${st.timer ? 'ON' : 'OFF'}</span></div>
-      <p class="dim" style="margin:0;font-size:16px">Quiz pressure: 3:00 per calculation, 0:45 for everything else. Running out of time counts as a miss.</p>
+      <p class="dim" style="margin:0;font-size:16px">Quiz pressure: ${Math.floor((CAMP.examCalc || 180) / 60)}:${String((CAMP.examCalc || 180) % 60).padStart(2, '0')} per calculation, ${Math.floor((CAMP.examOther || 45) / 60)}:${String((CAMP.examOther || 45) % 60).padStart(2, '0')} for everything else. Running out of time counts as a miss.</p>
       <button class="pb ${st.timer ? 'go' : ''}" data-act="timer">${st.timer ? 'Timer on · tap to turn off' : 'Timer off · tap to turn on'}</button></div>` : m.topics.map(ruleCard).join('')}
     <button class="pb go big" data-act="begin">${m.final ? W().go + ' ▶' : W().start + ' ▶'} (${queue.length})</button>
   </section>`);
@@ -586,13 +595,17 @@ function renderTask(){
   if (t.type === 'redox') ui.rx = { ox:null, red:null, prodTap:false };
   if (XT[t.type] && XT[t.type].init) XT[t.type].init(t);
   const chips = [];
-  if (t.n) chips.push(`<span class="chip">${CAMP.id === 'tower' ? 'Test' : 'Guide'} #${t.n}</span>`);
+  if (t.ref) chips.push(`<span class="chip">${t.ref}</span>`);
+  else if (t.n) chips.push(`<span class="chip">${CAMP.id === 'tower' ? 'Test' : 'Guide'} #${t.n}</span>`);
+  const tsec = t.timed || (m.final && st.timer ? (t.type === 'calc' ? (CAMP.examCalc || 180) : (CAMP.examOther || 45)) : 0);
+  if (tsec && !m.final) chips.push(`<span class="chip re">⏱ Timed</span>`);
   if (m.repair) chips.push(`<span class="chip re">${W().Bay}</span>`);
-  else if (t.reroute) chips.push(`<span class="chip re">Rerouted</span>`); else if (!t.n) chips.push(`<span class="chip">New numbers</span>`);
+  else if (t.reroute) chips.push(`<span class="chip re">Rerouted</span>`); else if (!t.n && !t.ref) chips.push(`<span class="chip">New numbers</span>`);
   const lit = m.repair ? Math.max(.15, Math.min(.9, st.hull / 100)) : m.final ? .6 : st.done.includes(m.id) ? 1 : Math.min(.85, .15 + .7 * c.pos / c.queue.length);
   const charge = m.final ? (c.ok || 0) / c.queue.length : null;
   const extra = `<span class="stag">${m.name.toUpperCase()} · ${c.pos + 1}/${c.queue.length}</span><div class="schips">${chips.join('')}</div>` +
-    (m.final ? `<div class="charge"><span class="lab">${W().charge}</span><div class="cbar"><i style="width:${Math.round(100 * charge)}%"></i></div>${st.timer ? '<span class="timer" id="timer">--:--</span>' : ''}</div>` : '');
+    (m.final ? `<div class="charge"><span class="lab">${W().charge}</span><div class="cbar"><i style="width:${Math.round(100 * charge)}%"></i></div>${tsec ? '<span class="timer" id="timer">--:--</span>' : ''}</div>`
+      : tsec ? `<div class="charge"><span class="lab">⏱ Time limit</span><div class="cbar"><i id="tbar" style="width:100%;background:var(--na)"></i></div><span class="timer" id="timer">${Math.floor(tsec / 60)}:${String(tsec % 60).padStart(2, '0')}</span></div>` : '');
   show(`<section class="scr">
     ${sceneHTML(m.id, lit, extra, m.final || (m.repair && st.hull < 35), charge)}
     ${talkHTML()}
@@ -602,10 +615,24 @@ function renderTask(){
     <div class="hintbox" id="hintbox"></div>
     <div id="fb"></div>
   </section>`);
+  ui.tsec = tsec;
+  if (t.timed && !m.final && !m.repair){
+    ui.gate = true;
+    document.getElementById('qtext').innerHTML = `<p><b>Timed problem · ${Math.floor(t.timed / 60) ? Math.floor(t.timed / 60) + ' min ' : ''}${t.timed % 60 ? t.timed % 60 + ' s' : ''}</b></p><p class="dim" style="margin-top:6px">${F(t.timeWhy || 'Work it like a real test: paper ready, then start the clock.')}</p>
+      <p class="dim" style="margin-top:6px;font-size:15px">The problem appears when you start. Running out of time counts as a miss.</p><button class="pb go big" style="margin-top:12px" data-act="tstart">Start the clock ▶</button>`;
+    say(t.story || pick(m.flav || FRESH), 'alarm');
+    return;
+  }
+  if (m.repair) ui.tsec = 0;
   document.getElementById('qtext').innerHTML = questionHTML();
   drawBody(); drawHints();
   say(m.repair ? pick(CAMP.repairLines) : (t.story || pick(m.flav || FRESH)), t.reroute || m.repair ? 'smug' : m.final ? 'alarm' : 'neutral');
-  if (m.final && st.timer) startTimer(t.type === 'calc' ? 180 : 45);
+  if (ui.tsec) startTimer(ui.tsec);
+}
+function startTimed(){
+  ui.gate = false; SND.play('alarm');
+  document.getElementById('qtext').innerHTML = questionHTML();
+  drawBody(); drawHints(); startTimer(ui.tsec);
 }
 function questionHTML(){
   const t = ui.t;
@@ -619,7 +646,7 @@ function questionHTML(){
   }
 }
 function drawHints(){
-  const t = ui.t, el = document.getElementById('hints'); if (!el) return;
+  const t = ui.t, el = document.getElementById('hints'); if (!el || ui.gate) return;
   if (ui.done){ el.innerHTML = ''; }
   else {
     const b = [];
@@ -634,7 +661,7 @@ function drawHints(){
   document.getElementById('hintbox').innerHTML = parts.join('');
 }
 function drawBody(){
-  const t = ui.t, body = document.getElementById('body'); if (!body) return;
+  const t = ui.t, body = document.getElementById('body'); if (!body || ui.gate) return;
   const dis = ui.done ? 'disabled' : '';
   const verb = VERB[ui.room] || 'Engage';
   let h = '';
@@ -720,7 +747,7 @@ function calcBody(verb){
       <div class="devh"><span>${DEVNAME[ui.room] || 'Console'}</span><span>${t.gen === 'hydrate' || t.gen === 'limit' ? 'Step 2' : 'Final answer'}</span></div>
       <div class="paper"><b>PAPER</b><span>Work it by hand with units on every step. Round only at the end. Then enter your final answer.</span></div>
       ${lcdHTML(true)}
-      <div class="units">${UNITS.map(u => `<button class="sw" data-act="unit" data-u="${u}" aria-pressed="${ui.kp.unit === u}" ${ui.done ? 'disabled' : ''}>${u}</button>`).join('')}</div>
+      <div class="units">${(ui.b.units || CAMP.units || UNITS).map(u => `<button class="sw" data-act="unit" data-u="${u}" aria-pressed="${ui.kp.unit === u}" ${ui.done ? 'disabled' : ''}>${u}</button>`).join('')}</div>
       ${keysHTML(true)}
       <p class="err" id="err"></p>
       ${ui.done ? '' : `<button class="pb go big" data-act="submit">${verb} ▶</button>`}
@@ -984,7 +1011,7 @@ function resolve(ok, sev, html){
     fx.burst(r.left + r.width / 2, r.top + r.height / 2, 30, [C.na, C.cu, C.ba, C.white]);
     const en = document.getElementById('enev').getBoundingClientRect();
     fx.fly(r.left + r.width / 2, r.top + r.height / 2, en.left + 6, en.top + 6, 8, C.na);
-    say(st.streak >= 3 ? `${st.streak} in a row. Combo bonus.` : pick(OKL), 'happy');
+    say(t.after && !m.final ? t.after : st.streak >= 3 ? `${st.streak} in a row. Combo bonus.` : pick(OKL), 'happy');
     if (t.type === 'redox') setTimeout(sendElectrons, 50);
     const bar = view.querySelector('.cbar i'); if (bar) bar.style.width = Math.round(100 * c.ok / c.queue.length) + '%';
   } else {
@@ -1046,6 +1073,7 @@ function startTimer(sec){
   const tick = () => {
     const el = document.getElementById('timer'); const left = Math.max(0, Math.ceil((ui.deadline - Date.now()) / 1000));
     if (el){ el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; el.classList.toggle('low', left <= 15); }
+    const tb = document.getElementById('tbar'); if (tb){ tb.style.width = Math.round(100 * left / sec) + '%'; tb.style.background = left <= 15 ? 'var(--sr)' : 'var(--na)'; }
     if (left <= 10 && left > 0 && !ui.done) SND.play('tick');
     if (left <= 0){ stopTimer(); if (!ui.done) resolve(false, 'major', '<p>Time ran out.</p>' + solutionHTML(ui.t)); }
   };
@@ -1237,6 +1265,7 @@ document.addEventListener('click', e => {
     }
     case 'dlg-next': SND.play('key'); if (ui.dlg){ ui.dlg.i++; dlgStep(); } break;
     case 'begin': renderTask(); break;
+    case 'tstart': startTimed(); break;
     case 'timer': st.timer = !st.timer; save(); b.textContent = st.timer ? 'Timer on · tap to turn off' : 'Timer off · tap to turn on'; b.classList.toggle('go', st.timer); b.parentElement.querySelector('.devh span:last-child').textContent = st.timer ? 'ON' : 'OFF'; break;
     case 'report': renderReport(); break;
     case 'badges': renderBadges(); break;
