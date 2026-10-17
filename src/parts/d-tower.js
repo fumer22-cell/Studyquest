@@ -22,7 +22,7 @@ CALC.chain = {
       grids:[{cols:[[[p.x, p.u0], null], ...p.f.map(f => [[f[0], f[1]], [f[2], f[3]]])], res:[finV(a), p.ru], given:true}],
       setup:p.setup || 'Start with the given amount. Multiply by conversion factors so each unit cancels, ending in the unit you want.' };
   },
-  rand(p){ return { ...p, x:randLike(p.x), var:true }; }
+  rand(p){ if (!String(p.q).includes('{x}') && !String(p.qv || '').includes('{x}')) return { ...p }; return { ...p, x:randLike(p.x), var:true }; }
 };
 const FMASS = [
   {name:'H2O', parts:[['H','1.008',2],['O','15.999',1]]}, {name:'NH3', parts:[['N','14.007',1],['H','1.008',3]]},
