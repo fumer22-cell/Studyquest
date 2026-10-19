@@ -573,3 +573,37 @@ CAMPS.sky = { id:'sky', title:'The Skylark Run', tag:'Ch. 5 gases, liquids & sol
 }
 Object.assign(DEVNAME, { gauges:'Gauge log', cargo:'Stowing guide', envelope:'Envelope log', engine:'Engine log', galley:'Galley notes', lab:'Lab notebook', dive:'Topside console', supply:'Mixing bench', pharm:'IV order pad', cold:'Cold lab log', osmo:'Ward chart', lytes:'Ward chart', home:'Navigation log', loft:'Patch kit' });
 Object.assign(VERB, { gauges:'Log reading', cargo:'Stow it', envelope:'Confirm', engine:'Log it', galley:'Note it', lab:'Record', dive:'Radio topside', supply:'Mix it', pharm:'Fill order', cold:'Mix de-icer', osmo:'Chart it', lytes:'Sign order', home:'Steer', loft:'Patch it' });
+
+/* ---------- Learning mode: show the formula for every Skylark calculation ---------- */
+const PATM = (u, f) => `1 atm = ${f} ${u}  →  P(atm) = P(${u}) ÷ ${f}`;
+const SKYF = {
+  k1a:'1 atm = 760 mm Hg, 1 cm Hg = 10 mm Hg  →  P(atm) = P(cm Hg) × 10 ÷ 760', k1b:PATM('torr', 760), k1c:PATM('mm Hg', 760), k1d:PATM('kPa', 101.325),
+  kx1:PATM('torr', 760), kx2:PATM('kPa', 101.325),
+  k4:'Boyle\'s law: P1V1 = P2V2  →  V2 = V1 × P1 ÷ P2', kx3:'Boyle\'s law: P1V1 = P2V2  →  V2 = V1 × P1 ÷ P2',
+  k7:'Avogadro\'s law: V1 ÷ n1 = V2 ÷ n2  →  V2 = V1 × n2 ÷ n1 (same gas, so the mass ratio equals the mole ratio)',
+  k10:'Density at STP = molar mass ÷ 22.4 L/mol  ·  % of air = d(gas) ÷ d(air) × 100',
+  k5:'Charles\'s law: V1 ÷ T1 = V2 ÷ T2  →  V2 = V1 × T2 ÷ T1  (T in kelvin: K = °C + 273)', kx4:'Charles\'s law: V2 = V1 × T2 ÷ T1  (T in kelvin)',
+  k6:'Combined gas law: P1V1 ÷ T1 = P2V2 ÷ T2  →  P2 = P1 × (V1 ÷ V2) × (T2 ÷ T1)  (T in kelvin)',
+  k8:'Ideal gas law: PV = nRT  →  n = PV ÷ RT  (R = 0.0821 L·atm/(mol·K), T in kelvin)',
+  k9:'Dalton\'s law: P(total) = P(He) + P(Ne)  →  P(Ne) = P(total) − P(He)',
+  k6p4:'Henry\'s law: solubility (M) = k × P(gas)',
+  k6p5a:'m/v % = g solute ÷ mL solution × 100', k6p5b:'m/v % = g solute ÷ mL solution × 100  (1 L = 1000 mL)', k6p7:'m/v % = g solute ÷ mL solution × 100', kx8:'m/v % = g solute ÷ mL solution × 100',
+  k6p6a:'m/m % = g solute ÷ g solution × 100', k6p6b:'m/m % = g solute ÷ g solution × 100  ·  g solution = mL × density',
+  k6p8:'Molarity: M = mol solute ÷ L solution',
+  k6p9a:'g solute = L solution × M × molar mass  (mL ÷ 1000 = L)', k6p9b:'g solute = L solution × M × molar mass  (mL ÷ 1000 = L)', k6p10:'g solute = L solution × M × molar mass', kx9:'g solute = L solution × M × molar mass',
+  k6p11:'Dilution: M1V1 = M2V2  →  M2 = M1 × V1 ÷ V2', k6p12:'Dilution: M1V1 = M2V2  →  M2 = M1 × V1 ÷ V2  (V2 = final TOTAL volume)', kx10:'Dilution: M2 = M1 × V1 ÷ V2',
+  k2p2b:'Molality: m = mol solute ÷ kg solvent  (mol = g ÷ molar mass)',
+  k2p2c:'Ion molality = m × (number of that ion per formula unit)',
+  k2p3d1:'ΔTf = Kf × m × i  (Kf of water = 1.86 °C/m; i = particles per formula unit)',
+  k2p3d2:'Tf = 0.0 °C − ΔTf  ·  ΔTb = Kb × m × i, Tb = 100.00 °C + ΔTb  (Kb of water = 0.512 °C/m)',
+  k2p5:'Osmotic pressure: π = i × M × R × T  (R = 0.0821 L·atm/(mol·K), T in kelvin)',
+  k2p7b:'Molarity: M = mol solute ÷ L solution  (mol = g ÷ molar mass, mL ÷ 1000 = L)',
+  k2p7c:'Ion M = M × ions per formula unit  ·  eq/L = ion M × |charge|  ·  meq/L = eq/L × 1000', kx13:'eq/L = ion M × |charge|  ·  meq/L = eq/L × 1000'
+};
+{
+  const qh = questionHTML;
+  questionHTML = function(){
+    const h = qh(), f = CAMP.id === 'sky' && ui.t && SKYF[baseId(ui.t.id)];
+    return f ? h + `<div class="fbox"><span class="lab">Formula</span><p>${F(f)}</p></div>` : h;
+  };
+}
