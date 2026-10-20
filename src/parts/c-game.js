@@ -429,7 +429,7 @@ function hud(){
   segs.innerHTML = Array.from({length:10}, (_, i) => `<i class="seg ${i < on ? 'on' : ''}"></i>`).join('');
   segs.classList.toggle('low', h < 35);
   document.getElementById('enev').textContent = st.energy;
-  document.querySelector('.hullw .lab').textContent = W().Hull; document.querySelector('.enw .lab').textContent = W().nrg;
+  document.querySelector('.hullw .lab').textContent = W().hudHull || W().Hull; document.querySelector('.enw .lab').textContent = W().nrg;
   const cb = document.getElementById('combo'); cb.hidden = st.streak < 2; cb.textContent = 'x' + st.streak;
   const ri = rankIdx(st.xp); document.getElementById('rankname').textContent = RANKS[ri][1];
   drawRankIco(document.getElementById('rankico').getContext('2d'), ri);
@@ -503,14 +503,15 @@ function renderMap(){
         <div class="rooms">${CAMP.layout.flat().map(cell).join('')}</div></div>
       ${CAMP.shape !== 'ship' ? '<div class="ground"></div>' : `<div class="tail"><canvas data-art="tail" data-on="${st.done.includes('eng') ? 1 : 0}" class="pix" width="80" height="16" aria-hidden="true"></canvas></div>`}
     </div>
-    <button class="room bayroom ${st.wrongs.length ? 'st-next' : 'st-online'}" data-act="repair" aria-label="${W().Bay}: ${st.wrongs.length} ${W().crack}s">
+    <button class="room bayroom ${st.wrongs.length ? 'st-next' : 'st-online'}" data-act="repair" aria-label="${W().Bay}: ${st.wrongs.length} ${crs()}">
       <canvas data-room="${CAMP.repair.id}" data-lit="${Math.max(.2, Math.min(1, st.hull / 100))}" ${st.hull < 35 ? 'data-alarm="1"' : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>
-      <span class="rlab"><i class="led"></i>${W().Bay} · ${W().hull} ${Math.max(0, st.hull)}% · ${st.wrongs.length ? st.wrongs.length + ' ' + W().crack + (st.wrongs.length > 1 ? 's' : '') + ' to ' + W().weld : 'no ' + W().crack + 's'}</span></button>
+      <span class="rlab"><i class="led"></i>${W().Bay} · ${W().hull} ${Math.max(0, st.hull)}% · ${st.wrongs.length ? st.wrongs.length + ' ' + (st.wrongs.length > 1 ? crs() : W().crack) + ' to ' + W().weld : 'no ' + crs()}</span></button>
+    ${CAMP.allTimed ? `<button class="pb ${st.timer ? 'go' : ''}" data-act="examtoggle">⏱ Exam timing: ${st.timer ? 'ON (every question on the clock)' : 'OFF (practice at your own pace)'}</button>` : ''}
     <div class="row"><button class="pb sm" data-act="badges">Badges ${st.badges.length}/${BADGES.length}</button><button class="pb sm" data-act="report">Study report</button><button class="pb sm" data-act="title">Title</button></div>
   </section>`);
   const next = MODS.findIndex((m, i) => unlocked(i) && !st.done.includes(m.id));
   if (next < 0) say('Every system is online. Replay any room to practice.', 'happy');
-  else if (st.hull < 60 && st.wrongs.length) say(`${W().Hull} at ${Math.max(0, st.hull)}%. The ${W().bay} has ${st.wrongs.length} ${W().crack}${st.wrongs.length > 1 ? 's' : ''} from problems you missed. Each one you re-solve restores 15 ${W().hull}.`, 'worried');
+  else if (st.hull < 60 && st.wrongs.length) say(`${W().Hull} at ${Math.max(0, st.hull)}%. The ${W().bay} has ${st.wrongs.length} ${st.wrongs.length > 1 ? crs() : W().crack} from problems you missed. Each one you re-solve restores 15 ${W().hull}.`, 'worried');
   else if (st.cur && st.cur.m !== -1) say(`The ${MODS[st.cur.m].name} is ${W().mid}. Tap it to pick up where you left off.`, 'neutral');
   else say(next === 0 ? CAMP.firstLine : `Next up: the ${MODS[next].name}. Tap it.`, next === MODS.length - 1 ? 'worried' : 'neutral');
 }
@@ -523,7 +524,7 @@ const sceneHTML = (id, lit, extra = '', alarm = false, charge = null) =>
   `<div class="scene"><canvas data-room="${id}" data-lit="${lit}" ${alarm ? 'data-alarm="1"' : ''} ${charge != null ? `data-charge="${charge}"` : ''} class="pix" width="80" height="40" aria-hidden="true"></canvas>${extra}</div>`;
 function startRepair(){
   if (st.cur && st.cur.m === -1){ renderTask(); return; }
-  if (!st.wrongs.length){ SND.play('jam'); say(st.hull < 100 ? `No ${W().crack}s to ${W().weld} yet. Every problem you miss gets added to the ${W().bay}.` : `Your ${W().hull} is solid and the ${W().bay} is empty. Nice.`, 'happy'); return; }
+  if (!st.wrongs.length){ SND.play('jam'); say(st.hull < 100 ? `No ${crs()} to ${W().weld} yet. Every problem you miss gets added to the ${W().bay}.` : `Your ${W().hull} is solid and the ${W().bay} is empty. Nice.`, 'happy'); return; }
   if (st.cur) st.parked = st.cur;
   const queue = st.wrongs.slice(0, 5).map(w => JSON.parse(JSON.stringify(w)));
   st.cur = { m:-1, queue, pos:0, first:0, rer:0, ok:0, hints:0 };
@@ -533,7 +534,7 @@ function startRepair(){
     <h1 class="h1">${W().Bay}</h1>
     ${talkHTML()}
     <div id="dlgbtns"></div>
-    <div class="stats"><div class="stat"><span class="lab">${W().Hull}</span><b>${Math.max(0, st.hull)}%</b></div><div class="stat"><span class="lab">${W().crack}s</span><b>${st.wrongs.length}</b></div><div class="stat"><span class="lab">${W().perWeld}</span><b>+15</b></div></div>
+    <div class="stats"><div class="stat"><span class="lab">${W().Hull}</span><b>${Math.max(0, st.hull)}%</b></div><div class="stat"><span class="lab">${crs()}</span><b>${st.wrongs.length}</b></div><div class="stat"><span class="lab">${W().perWeld}</span><b>+15</b></div></div>
     <button class="pb go big" data-act="begin">${W().startWeld} ▶ (${queue.length})</button>
   </section>`);
   SND.play('zip');
@@ -574,6 +575,7 @@ function buildFinal(){
 /* ========================================================================
    TASK SCREEN
    ======================================================================== */
+const crs = () => W().cracks || W().crack + 's';
 const curTask = () => st.cur.queue[st.cur.pos];
 const DEVNAME = { gate:'Gate runes', lib:'Tome', lab:'Alembic', obs:'Star chart', scr:'Quill & scroll', apo:'Jar labels', vault:'Balance scale', mine:'Crystal counter', forge:'Forge ledger', circ:'Summoning circle', top:'Beacon rune', shrine:'Mending font', bay:'Welding rig', med:'IV pump · dose input', air:'Scrubber console', fab:'Fabricator · print job', rx:'Reactor controls', sen:'Radar', h2o:'Tank controls', pow:'Battery bank', crg:'Label maker', eng:'Fuel console', fin:'Jump computer' };
 const VERB = { gate:'Speak rune', lib:'Turn page', lab:'Distill', obs:'Align', scr:'Inscribe', apo:'Label jar', vault:'Weigh', mine:'Count', forge:'Strike', circ:'Summon', top:'Ignite', shrine:'Mend', bay:'Weld patch', med:'Start pump', air:'Calibrate', fab:'Print', rx:'Engage core', h2o:'Flush tank', pow:'Transfer e⁻', crg:'Stamp label', eng:'Fire thrusters', fin:'Charge drive' };
@@ -597,7 +599,7 @@ function renderTask(){
   const chips = [];
   if (t.ref) chips.push(`<span class="chip">${t.ref}</span>`);
   else if (t.n) chips.push(`<span class="chip">${CAMP.id === 'tower' ? 'Test' : 'Guide'} #${t.n}</span>`);
-  const tsec = t.timed || (m.final && st.timer ? (t.type === 'calc' ? (CAMP.examCalc || 180) : (CAMP.examOther || 45)) : 0);
+  const tsec = t.timed || (m.final && st.timer ? (t.type === 'calc' ? (CAMP.examCalc || 180) : (CAMP.examOther || 45)) : 0) || (CAMP.allTimed && st.timer && !m.repair ? (CAMP.allTimed[t.type] || CAMP.allTimed.other || 60) : 0);
   if (tsec && !m.final) chips.push(`<span class="chip re">⏱ Timed</span>`);
   if (m.repair) chips.push(`<span class="chip re">${W().Bay}</span>`);
   else if (t.reroute) chips.push(`<span class="chip re">Rerouted</span>`); else if (!t.n && !t.ref) chips.push(`<span class="chip">New numbers</span>`);
@@ -1135,7 +1137,7 @@ function renderEnding(res, earned){
     <h1 class="h1">${head}</h1>
     ${talkHTML()}
     <div class="stats">
-      <div class="stat"><span class="lab">Guide first-try</span><b>${st.score.ok}/${st.score.n}</b></div>
+      <div class="stat"><span class="lab">${W().firstTry || 'Guide first-try'}</span><b>${st.score.ok}/${st.score.n}</b></div>
       <div class="stat"><span class="lab">${W().check}</span><b>${res.first}/${res.tot}</b></div>
       <div class="stat"><span class="lab">Patches</span><b>${st.patches}</b></div>
       <div class="stat"><span class="lab">Rank</span><b style="font-size:11px">${RANKS[rankIdx(st.xp)][1]}</b></div>
@@ -1266,6 +1268,7 @@ document.addEventListener('click', e => {
     case 'dlg-next': SND.play('key'); if (ui.dlg){ ui.dlg.i++; dlgStep(); } break;
     case 'begin': renderTask(); break;
     case 'tstart': startTimed(); break;
+    case 'examtoggle': st.timer = !st.timer; save(); renderMap(); break;
     case 'timer': st.timer = !st.timer; save(); b.textContent = st.timer ? 'Timer on · tap to turn off' : 'Timer off · tap to turn on'; b.classList.toggle('go', st.timer); b.parentElement.querySelector('.devh span:last-child').textContent = st.timer ? 'ON' : 'OFF'; break;
     case 'report': renderReport(); break;
     case 'badges': renderBadges(); break;

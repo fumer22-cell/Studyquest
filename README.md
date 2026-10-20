@@ -2,7 +2,8 @@
 
 One engine, four campaigns. The current exam is listed first; earlier ones sit in an archive on the title screen.
 
-- **The Skylark Run** (current): CHE101 FunSheets for Chapter 5 (gases, liquids, solids) and Chapter 6 Parts 1–2 (solutions). Every problem is a job aboard an airship or at an island research station, and each answer decides something in the story. Story-driven timed problems, word-bank fill-ins, intermolecular-force checklists, ranking, and an exam-conditions storm finale.
+- **Night Shift at Mercy General** (current): all 74 questions from the Unit 3 practice exam (Ch. 5–6), each set as a case in a hospital department, with Dalton the therapy dog. Exam conditions: every question runs on a clock (toggle on the map), there are no formula hints, multiple choice is kept where the exam uses it, and calculations are worked by hand with only the final answer typed. A Code Blue final, plus a break room where you redo misses to win back stamina.
+- **The Skylark Run** (current, learning version of the same chapters): CHE101 FunSheets for Chapter 5 (gases, liquids, solids) and Chapter 6 Parts 1–2 (solutions). Every problem is a job aboard an airship or at an island research station, and each answer decides something in the story. Story-driven timed problems, word-bank fill-ins, intermolecular-force checklists, ranking, and an exam-conditions storm finale.
 
 Archived:
 
@@ -29,5 +30,5 @@ effects, and an escape sequence with an optional exam timer.
 
 Open `index.html` in any browser. Source lives in `src/parts/`:
 `a-shell.html` (styles + page shell), `b-data.js` (study-guide problems, generators,
-grading data), `c-game.js` (rendering, sound, game logic), `d-tower.js` (Valence Spire questions, tower art, campaign definitions), `f-temple.js` (Temple of the Mole content plus the built-answer types), `g-sky.js` (The Skylark Run, cloze/checks/rank types, timed-problem badge), `e-init.js` (startup). Run `./build.sh` to
+grading data), `c-game.js` (rendering, sound, game logic), `d-tower.js` (Valence Spire questions, tower art, campaign definitions), `f-temple.js` (Temple of the Mole content plus the built-answer types), `g-sky.js` (The Skylark Run, cloze/checks/rank types, timed-problem badge), `h-med.js` (Night Shift at Mercy General), `e-init.js` (startup). Run `./build.sh` to
 regenerate `src/game.html` (artifact fragment) and `index.html`.
