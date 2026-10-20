@@ -439,6 +439,27 @@ details.archive summary::-webkit-details-marker{display:none}
 .const{display:grid;gap:4px;margin-top:14px;font-size:16px}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Written answers and the Claude tutor */
+.fb.part .fbh{background:var(--na);color:#2a1a0a}
+.oa{display:block;width:100%;min-height:130px;resize:vertical;font:18px/1.45 var(--f-body);background:#fff8e0;color:#2a1a0a;border:0;box-shadow:inset 0 0 0 3px #6a4a2a;padding:10px 12px;margin:0 0 10px}
+.oa:focus{outline:none;box-shadow:inset 0 0 0 3px var(--cu)}
+.oa:disabled{opacity:.85}
+.aiwait{margin:0;font:700 16px var(--f-ui);color:var(--cu)}
+.rub{display:grid;gap:8px;margin:10px 0}
+.rubi{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;text-align:left;border:0;background:#1a1f36;color:var(--ink);font:16px/1.4 var(--f-body);padding:10px;clip-path:var(--notch);box-shadow:inset 0 0 0 3px var(--line)}
+.rubi[aria-pressed="true"]{box-shadow:inset 0 0 0 3px var(--ba)}
+.rubi small{color:var(--dim)}
+.yours{margin:0;padding:10px 12px;background:#0d1424;border-left:4px solid var(--cu);font-size:16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat{display:grid;gap:10px;padding:12px}
+.chat .devh{margin:0}
+.msgs{display:grid;gap:8px;max-height:46vh;overflow-y:auto}
+.msg{padding:10px 12px;font-size:16px;line-height:1.45;overflow-wrap:anywhere;clip-path:var(--notch)}
+.msg.me{background:#1d3550;justify-self:end;max-width:88%;white-space:pre-wrap}
+.msg.ai{background:#e8f4f2;color:#13222a}
+.chatin{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.chatin textarea{width:100%;font:17px/1.4 var(--f-body);background:#fff8e0;color:#2a1a0a;border:0;box-shadow:inset 0 0 0 3px #6a4a2a;padding:8px 10px;resize:none}
+.chatin textarea:focus{outline:none;box-shadow:inset 0 0 0 3px var(--cu)}
 </style>
 
 <canvas id="stars" aria-hidden="true"></canvas>

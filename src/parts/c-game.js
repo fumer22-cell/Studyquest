@@ -599,7 +599,7 @@ function renderTask(){
   const chips = [];
   if (t.ref) chips.push(`<span class="chip">${t.ref}</span>`);
   else if (t.n) chips.push(`<span class="chip">${CAMP.id === 'tower' ? 'Test' : 'Guide'} #${t.n}</span>`);
-  const tsec = t.timed || (m.final && st.timer ? (t.type === 'calc' ? (CAMP.examCalc || 180) : (CAMP.examOther || 45)) : 0) || (CAMP.allTimed && st.timer && !m.repair ? (CAMP.allTimed[t.type] || CAMP.allTimed.other || 60) : 0);
+  const tsec = t.timed || (m.final && st.timer ? (t.type === 'calc' ? (CAMP.examCalc || 180) : (CAMP.allTimed && CAMP.allTimed[t.type]) || CAMP.examOther || 45) : 0) || (CAMP.allTimed && st.timer && !m.repair ? (CAMP.allTimed[t.type] || CAMP.allTimed.other || 60) : 0);
   if (tsec && !m.final) chips.push(`<span class="chip re">⏱ Timed</span>`);
   if (m.repair) chips.push(`<span class="chip re">${W().Bay}</span>`);
   else if (t.reroute) chips.push(`<span class="chip re">Rerouted</span>`); else if (!t.n && !t.ref) chips.push(`<span class="chip">New numbers</span>`);
@@ -1022,24 +1022,24 @@ function resolve(ok, sev, html){
     if (m.repair){
       extra = `<p class="dmg">${W().patchFail}</p>`;
     } else {
-      const d = sev === 'minor' ? 6 : 15; st.hull -= d;
-      extra = `<p class="dmg">−${d} ${W().hull}${sev === 'minor' ? ' · formatting only' : ''}</p>`;
+      const d = sev === 'minor' ? 6 : sev === 'partial' ? 8 : 15; st.hull -= d;
+      extra = `<p class="dmg">−${d} ${W().hull}${sev === 'minor' ? ' · formatting only' : sev === 'partial' ? ' · partial credit' : ''}</p>`;
       if (st.hull <= 0){ st.patches++; st.hull = 35; extra += `<p class="dmg">${W().failHull} #${st.patches}. ${W().Hull} back to 35.</p>`; }
       addWrong(t);
       extra += `<p class="dim" style="font-size:15px">${W().added}</p>`;
       if ((t.depth || 0) < 2){ c.queue.push(variantOf(t, true)); c.rer++; extra += `<p class="dim" style="font-size:15px">${CAMP.pal} also queued a ${t.type === 'calc' ? 'version with new values' : 'related question'}.</p>`; }
     }
     if (o){ o.failUntil = now + 1.2; o.live = false; }
-    SND.play(sev === 'minor' ? 'minor' : 'fail'); flash('red'); shake();
+    SND.play(sev === 'minor' || sev === 'partial' ? 'minor' : 'fail'); flash('red'); shake();
     fx.burst(r.left + r.width / 2, r.top + r.height / 2, 24, [C.sr, C.orange, C.na]);
-    say(sev === 'minor' ? pick(MINORL) : pick(FAILL) + ' Rule: ' + stripTags(TOPICS[t.topic].rule).split('. ')[0] + '.', sev === 'minor' ? 'smug' : 'worried');
+    say(sev === 'partial' ? `Partial credit. Read what was missing, then redo it from the ${W().bay}.` : sev === 'minor' ? pick(MINORL) : pick(FAILL) + ' Rule: ' + stripTags(TOPICS[t.topic].rule).split('. ')[0] + '.', sev === 'minor' ? 'smug' : 'worried');
   }
   save();
   const snap = {}; view.querySelectorAll('input').forEach(i => { snap[i.id] = i.value; });
   drawBody(); drawHints();
   for (const id in snap){ const el = document.getElementById(id); if (el) el.value = snap[id]; }
   if (['tf','choice','classify','mc'].includes(t.type)) markPicked(ok);
-  document.getElementById('fb').innerHTML = `<div class="win fb ${ok ? 'ok' : 'no'}"><div class="fbh">${ok ? W().fixed : W().fault}</div>
+  document.getElementById('fb').innerHTML = `<div class="win fb ${ok ? 'ok' : 'no'}"><div class="fbh">${ok ? W().fixed : ui.head || W().fault}</div>
     <div class="fbb">${html}${extra}<button class="pb go big" data-act="next">Next ▶</button></div></div>`;
   hud(); award(earned);
   const rankAfter = rankIdx(st.xp);
@@ -1077,7 +1077,7 @@ function startTimer(sec){
     if (el){ el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; el.classList.toggle('low', left <= 15); }
     const tb = document.getElementById('tbar'); if (tb){ tb.style.width = Math.round(100 * left / sec) + '%'; tb.style.background = left <= 15 ? 'var(--sr)' : 'var(--na)'; }
     if (left <= 10 && left > 0 && !ui.done) SND.play('tick');
-    if (left <= 0){ stopTimer(); if (!ui.done) resolve(false, 'major', '<p>Time ran out.</p>' + solutionHTML(ui.t)); }
+    if (left <= 0){ stopTimer(); if (!ui.done){ const X = XT[ui.t.type]; if (X && X.timeout) X.timeout(ui.t); else resolve(false, 'major', '<p>Time ran out.</p>' + solutionHTML(ui.t)); } }
   };
   tick(); ui.tint = setInterval(tick, 1000);
 }
@@ -1349,4 +1349,4 @@ document.getElementById('sheet').addEventListener('click', e => { if (e.target.i
 const PT = [['H','1.008'],['He','4.003'],['Li','6.94'],['B','10.81'],['C','12.01'],['N','14.01'],['O','16.00'],['F','19.00'],['Na','22.99'],['Mg','24.31'],['Al','26.98'],['P','30.97'],['S','32.07'],['Cl','35.45'],['K','39.10'],['Ca','40.08'],['Fe','55.85'],['Co','58.93'],['Ni','58.69'],['Cu','63.55'],['Zn','65.38'],['Br','79.90'],['Ag','107.87'],['Sn','118.71'],['I','126.90'],['Ba','137.33'],['Pb','207.2']];
 document.getElementById('ptable').innerHTML = PT.map(([s, m]) => `<div class="pc"><b>${s}</b><span>${m}</span></div>`).join('');
 
-window.__avogadro = { CALC, toSci, sfOf, parseF, balState, get ORIG(){ return ORIG; }, EXTRA, variantOf };
+window.__avogadro = { get XT(){ return XT; }, CALC, toSci, sfOf, parseF, balState, get ORIG(){ return ORIG; }, EXTRA, variantOf };
